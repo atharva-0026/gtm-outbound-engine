@@ -1,55 +1,59 @@
 """
-ICP (Ideal Customer Profile) scoring.
+ICP (Ideal Customer Profile) scoring — XGBoost classifier + SHAP.
 
-Rule-based and fully transparent on purpose — every score breaks down
-into named components, same principle as the SHAP explainability layer
-on Aegis. When you have real outcome data (closed-won/lost), replace
-this with a trained model (XGBoost) and keep the breakdown output for
-explainability.
+Predicts probability of conversion, scaled to a 0-100 ICP score. Every
+score ships with its top 3 SHAP feature contributions, same
+explainability principle as Aegis's risk-scoring SHAP layer — the model
+isn't a black box, every score traces back to *why*.
+
+Requires a trained model. Run `python train_model.py` once first (see
+that file for what the model is trained on and why).
 """
 
+import os
 from typing import Dict
 
-REGULATORY_WEIGHTS = {
-    "crypto": 25,
-    "cross-border payments": 20,
-    "high-risk corridors": 20,
-    "correspondent banking": 15,
-    "neobank": 10,
-    "lending": 8,
-}
+import joblib
+import numpy as np
+import shap
 
-SIZE_BANDS = [
-    (0, 50, 10),
-    (51, 200, 20),
-    (201, 1000, 15),
-    (1001, 10**9, 5),
-]
+from app.features import FEATURE_NAMES, build_features
+
+_MODEL_PATH = os.path.join(os.path.dirname(__file__), "..", "model", "icp_model.joblib")
+
+_model = None
+_explainer = None
 
 
-def _size_score(employee_count: int) -> int:
-    for low, high, score in SIZE_BANDS:
-        if low <= employee_count <= high:
-            return score
-    return 5
+def _load():
+    global _model, _explainer
+    if _model is None:
+        if not os.path.exists(_MODEL_PATH):
+            raise FileNotFoundError(
+                "Model not found at model/icp_model.joblib. "
+                "Run `python train_model.py` first to train it."
+            )
+        _model = joblib.load(_MODEL_PATH)
+        _explainer = shap.TreeExplainer(_model)
+    return _model, _explainer
 
 
 def score_company(company: Dict) -> Dict:
+    model, explainer = _load()
     company = dict(company)
-    reg_flags = company.get("regulatory_flags", []) or []
-    reg_score = sum(REGULATORY_WEIGHTS.get(f.lower(), 5) for f in reg_flags)
 
-    size_score = _size_score(company.get("employee_count", 50) or 50)
+    feats = build_features(company)
+    x = np.array([[feats[name] for name in FEATURE_NAMES]])
 
-    funding_stage = (company.get("funding_stage") or "").lower()
-    funding_score = 10 if funding_stage in ("series a", "series b") else 5
+    proba = float(model.predict_proba(x)[0, 1])
+    icp_score = round(proba * 100, 1)
 
-    total = min(100, reg_score + size_score + funding_score)
+    shap_values = explainer.shap_values(x)[0]
+    top_contributions = sorted(
+        zip(FEATURE_NAMES, shap_values), key=lambda kv: abs(kv[1]), reverse=True
+    )[:3]
 
-    company["icp_score"] = total
-    company["score_breakdown"] = {
-        "regulatory_exposure": reg_score,
-        "company_size_fit": size_score,
-        "funding_stage_fit": funding_score,
-    }
+    company["icp_score"] = icp_score
+    company["score_breakdown"] = {name: round(float(val), 3) for name, val in top_contributions}
+    company["score_method"] = "xgboost_shap_v1"
     return company

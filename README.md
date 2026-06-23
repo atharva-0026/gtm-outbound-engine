@@ -14,8 +14,11 @@ engineering.
 ```bash
 pip install -r requirements.txt
 
+# train the model once (writes model/icp_model.joblib)
+python train_model.py
+
 # CLI mode — fastest way to see it work
-python run_pipeline.py data/sample_leads.csv
+python run_pipeline.py data/real_leads.csv
 
 # API mode
 uvicorn app.main:app --reload
@@ -25,27 +28,54 @@ uvicorn app.main:app --reload
 ## What it does
 
 - `app/enrichment.py` — fills in missing firmographic fields (mocked, swappable)
-- `app/scoring.py` — weighted ICP score, regulatory exposure as primary signal, full breakdown for explainability
+- `app/features.py` — shared feature engineering, used identically by training and inference
+- `app/scoring.py` — XGBoost classifier + SHAP, predicts conversion probability as a 0-100 ICP score with the top 3 feature contributions per company
 - `app/personalize.py` — generates a personalized outreach draft per company
 - `app/main.py` — FastAPI wrapper, `/pipeline` runs the full motion end-to-end
 - `run_pipeline.py` — CLI runner, no server needed, writes `pipeline_output.json`
+- `train_model.py` — generates the training data and trains the model
 
-## Upgrade path (do these in order, this week)
+## The model
+
+**Run `python train_model.py` once before scoring anything** — it writes
+`model/icp_model.joblib`. The model file is committed to this repo, so a
+fresh clone works out of the box without retraining, but the script is
+there so you can see exactly how it was built and retrain whenever the
+data changes.
+
+There's no real conversion data yet (no live outbound motion has run).
+The training set is synthetic, generated from a domain-informed process:
+regulatory exposure (crypto, cross-border, correspondent banking) drives
+conversion likelihood up, company size drives it down (longer sales
+cycles, more likely to have in-house compliance), and funding stage has
+a deliberate *non-linear* sweet spot around Series B/C rather than a
+straight line — early-stage companies aren't ready to buy, very mature
+ones already have solutions. That non-linearity is the actual reason to
+use XGBoost instead of a hand-weighted score: a linear model or a rule
+table can't represent a "sweet spot," a tree-based model can.
+
+Current test set: AUC 0.83, accuracy 0.77, on a held-out 20% split.
+
+Every score ships with its top 3 SHAP contributions — which features
+pushed this company's score up or down, and by how much. Same
+explainability principle as the SHAP layer on Aegis's risk scoring.
+
+When real outcomes exist (responded / didn't, closed-won / lost),
+replace `generate_synthetic_dataset()` in `train_model.py` with a loader
+for that real labeled data and retrain. Nothing else changes.
+
+## Upgrade path (next, in order)
 
 1. **Swap mock enrichment for Clay.** Sign up, run Clay University's free
    course, replace `enrich_companies()` with a real Clay table pull.
-2. **Swap the email template for a real LLM call.** Pass `regulatory_flags`
-   and `icp_score` into the Claude API and let it write the email instead
-   of filling a template. Keep the structured output format.
-3. **Replace the rule-based scorer with a trained model** once you have
-   even 20-30 labeled outcomes (responded / didn't respond). XGBoost +
-   SHAP, same as Aegis — you already know this pattern.
-4. **Point it at a real list.** You already have one: the 30+ companies
-   from your AML/RegTech cold outreach (Flagright, Hawk AI, Salv, Unit21,
-   Signzy, Greenlite...). Run them through this pipeline. Now you have a
-   live demo you can show *those same companies* — "I built a GTM engine
-   and ran it against companies like yours" is a much stronger opener
-   than a cold email.
+2. **Swap the email template for a real LLM call.** Pass `regulatory_flags`,
+   `icp_score`, and the SHAP breakdown into the Claude API and let it write
+   the email instead of filling a template.
+3. **Get real labels.** Once you've run any outbound (even 20-30 sends),
+   retrain on actual responded/didn't-respond outcomes instead of synthetic
+   data.
+4. **Signal monitoring.** Re-score accounts automatically when a new
+   funding round or regulatory licence is announced.
 
 ## Metrics to capture once you run it on real data
 

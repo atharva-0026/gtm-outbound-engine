@@ -1,0 +1,159 @@
+[
+  {
+    "company_name": "Bitpanda",
+    "industry": "Crypto Exchange",
+    "employee_count": 926,
+    "country": "Austria",
+    "funding_stage": "Late-stage",
+    "regulatory_flags": [
+      "crypto",
+      "cross-border payments"
+    ],
+    "enrichment_source": "mock_v1",
+    "icp_score": 90.7,
+    "score_breakdown": {
+      "num_regulatory_flags": 1.154,
+      "flag_crypto": 0.852,
+      "flag_cross_border_payments": 0.443
+    },
+    "score_method": "xgboost_shap_v1",
+    "email_draft": {
+      "company_name": "Bitpanda",
+      "icp_score": 90.7,
+      "subject": "Cutting AML review time at Bitpanda",
+      "body": "Hi {first_name},\n\nSaw Bitpanda is scaling and figured your exposure to crypto, cross-border payments is probably eating analyst hours right now.\n\nWe built a system that auto-scores transaction risk and drafts SAR narratives in seconds instead of hours, cutting manual review time significantly for teams your size.\n\nWorth a 15-min look?\n\nBest,\n{sender_name}",
+      "upgrade_note": "Replace this template with a Claude API call for true per-account personalization."
+    }
+  },
+  {
+    "company_name": "Revolut",
+    "industry": "Neobank",
+    "employee_count": 9000,
+    "country": "UK",
+    "funding_stage": "Late-stage",
+    "regulatory_flags": [
+      "crypto",
+      "neobank",
+      "cross-border payments"
+    ],
+    "enrichment_source": "mock_v1",
+    "icp_score": 80.7,
+    "score_breakdown": {
+      "num_regulatory_flags": 1.672,
+      "employee_count_log": -0.866,
+      "flag_crypto": 0.813
+    },
+    "score_method": "xgboost_shap_v1",
+    "email_draft": {
+      "company_name": "Revolut",
+      "icp_score": 80.7,
+      "subject": "Cutting AML review time at Revolut",
+      "body": "Hi {first_name},\n\nSaw Revolut is scaling and figured your exposure to crypto, neobank, cross-border payments is probably eating analyst hours right now.\n\nWe built a system that auto-scores transaction risk and drafts SAR narratives in seconds instead of hours, cutting manual review time significantly for teams your size.\n\nWorth a 15-min look?\n\nBest,\n{sender_name}",
+      "upgrade_note": "Replace this template with a Claude API call for true per-account personalization."
+    }
+  },
+  {
+    "company_name": "dLocal",
+    "industry": "Emerging Markets Payments",
+    "employee_count": 1439,
+    "country": "Uruguay",
+    "funding_stage": "Public",
+    "regulatory_flags": [
+      "cross-border payments",
+      "high-risk corridors"
+    ],
+    "enrichment_source": "mock_v1",
+    "icp_score": 80.6,
+    "score_breakdown": {
+      "num_regulatory_flags": 1.206,
+      "flag_crypto": -0.468,
+      "flag_high_risk_corridors": 0.442
+    },
+    "score_method": "xgboost_shap_v1",
+    "email_draft": {
+      "company_name": "dLocal",
+      "icp_score": 80.6,
+      "subject": "Cutting AML review time at dLocal",
+      "body": "Hi {first_name},\n\nSaw dLocal is scaling and figured your exposure to cross-border payments, high-risk corridors is probably eating analyst hours right now.\n\nWe built a system that auto-scores transaction risk and drafts SAR narratives in seconds instead of hours, cutting manual review time significantly for teams your size.\n\nWorth a 15-min look?\n\nBest,\n{sender_name}",
+      "upgrade_note": "Replace this template with a Claude API call for true per-account personalization."
+    }
+  },
+  {
+    "company_name": "Nium",
+    "industry": "Payments Infrastructure",
+    "employee_count": 1200,
+    "country": "Singapore",
+    "funding_stage": "Late-stage",
+    "regulatory_flags": [
+      "cross-border payments",
+      "correspondent banking"
+    ],
+    "enrichment_source": "mock_v1",
+    "icp_score": 76.2,
+    "score_breakdown": {
+      "num_regulatory_flags": 1.009,
+      "flag_crypto": -0.463,
+      "flag_correspondent_banking": 0.37
+    },
+    "score_method": "xgboost_shap_v1",
+    "email_draft": {
+      "company_name": "Nium",
+      "icp_score": 76.2,
+      "subject": "Cutting AML review time at Nium",
+      "body": "Hi {first_name},\n\nSaw Nium is scaling and figured your exposure to cross-border payments, correspondent banking is probably eating analyst hours right now.\n\nWe built a system that auto-scores transaction risk and drafts SAR narratives in seconds instead of hours, cutting manual review time significantly for teams your size.\n\nWorth a 15-min look?\n\nBest,\n{sender_name}",
+      "upgrade_note": "Replace this template with a Claude API call for true per-account personalization."
+    }
+  },
+  {
+    "company_name": "Wise",
+    "industry": "Cross-border Remittance",
+    "employee_count": 5500,
+    "country": "UK",
+    "funding_stage": "Public",
+    "regulatory_flags": [
+      "cross-border payments",
+      "correspondent banking"
+    ],
+    "enrichment_source": "mock_v1",
+    "icp_score": 67.9,
+    "score_breakdown": {
+      "num_regulatory_flags": 0.938,
+      "flag_cross_border_payments": 0.548,
+      "flag_crypto": -0.446
+    },
+    "score_method": "xgboost_shap_v1",
+    "email_draft": {
+      "company_name": "Wise",
+      "icp_score": 67.9,
+      "subject": "Cutting AML review time at Wise",
+      "body": "Hi {first_name},\n\nSaw Wise is scaling and figured your exposure to cross-border payments, correspondent banking is probably eating analyst hours right now.\n\nWe built a system that auto-scores transaction risk and drafts SAR narratives in seconds instead of hours, cutting manual review time significantly for teams your size.\n\nWorth a 15-min look?\n\nBest,\n{sender_name}",
+      "upgrade_note": "Replace this template with a Claude API call for true per-account personalization."
+    }
+  },
+  {
+    "company_name": "Airwallex",
+    "industry": "Cross-border Payments",
+    "employee_count": 2517,
+    "country": "Singapore",
+    "funding_stage": "Late-stage",
+    "regulatory_flags": [
+      "cross-border payments",
+      "neobank"
+    ],
+    "enrichment_source": "mock_v1",
+    "icp_score": 63.5,
+    "score_breakdown": {
+      "num_regulatory_flags": 0.837,
+      "flag_cross_border_payments": 0.75,
+      "flag_crypto": -0.515
+    },
+    "score_method": "xgboost_shap_v1",
+    "email_draft": {
+      "company_name": "Airwallex",
+      "icp_score": 63.5,
+      "subject": "Cutting AML review time at Airwallex",
+      "body": "Hi {first_name},\n\nSaw Airwallex is scaling and figured your exposure to cross-border payments, neobank is probably eating analyst hours right now.\n\nWe built a system that auto-scores transaction risk and drafts SAR narratives in seconds instead of hours, cutting manual review time significantly for teams your size.\n\nWorth a 15-min look?\n\nBest,\n{sender_name}",
+      "upgrade_note": "Replace this template with a Claude API call for true per-account personalization."
+    }
+  }
+]
