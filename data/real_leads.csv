@@ -1,0 +1,7 @@
+company_name,industry,employee_count,country,funding_stage,regulatory_flags
+Airwallex,Cross-border Payments,2517,Singapore,Late-stage,"cross-border payments,neobank"
+Nium,Payments Infrastructure,1200,Singapore,Late-stage,"cross-border payments,correspondent banking"
+dLocal,Emerging Markets Payments,1439,Uruguay,Public,"cross-border payments,high-risk corridors"
+Bitpanda,Crypto Exchange,926,Austria,Late-stage,"crypto,cross-border payments"
+Wise,Cross-border Remittance,5500,UK,Public,"cross-border payments,correspondent banking"
+Revolut,Neobank,9000,UK,Late-stage,"crypto,neobank,cross-border payments"
