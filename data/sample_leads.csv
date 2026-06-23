@@ -1,0 +1,6 @@
+company_name,industry,employee_count,country,funding_stage,regulatory_flags
+NeoPay,Payments,180,Germany,Series B,"cross-border payments,neobank"
+CoinBridge,Crypto Exchange,90,Estonia,Series A,"crypto,cross-border payments"
+TrustLend,Lending,400,UK,Series B,lending
+GlobalRemit,Remittance,650,Singapore,Series C,"cross-border payments,correspondent banking"
+QuickBank,Neobank,45,Portugal,Seed,neobank
