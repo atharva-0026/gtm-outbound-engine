@@ -37,6 +37,7 @@ uvicorn app.main:app --reload
 - `app/main.py` — FastAPI wrapper, `/pipeline` runs the full motion end-to-end
 - `run_pipeline.py` — CLI runner, no server needed, writes `pipeline_output.json`
 - `train_model.py` — generates the training data and trains the scoring model
+- `dashboard.py` — Bloomberg-terminal style Streamlit dashboard
 
 ## The model (scoring)
 
@@ -113,6 +114,21 @@ changes.
    of synthetic data.
 3. **Signal monitoring.** Re-score accounts automatically when a new
    funding round or regulatory licence is announced.
+
+## Dashboard
+
+```bash
+streamlit run dashboard.py
+```
+
+Pick a lead list in the sidebar, click RUN PIPELINE. Each row expands to
+show the SHAP breakdown and an editable outreach draft (subject + body),
+with a per-row Regenerate button that calls the RAG pipeline again for
+just that company. Sidebar shows live status for whether the model is
+trained and whether Ollama is reachable.
+
+Toggle "AI-personalized drafts" off for a fast preview using the plain
+template instead of waiting on Ollama generation for every row.
 
 ## Metrics to capture once you run it on real data
 

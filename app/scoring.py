@@ -17,7 +17,7 @@ import joblib
 import numpy as np
 import shap
 
-from app.features import FEATURE_NAMES, build_features
+from app.features import FEATURE_NAMES, FEATURE_LABELS, build_features
 
 _MODEL_PATH = os.path.join(os.path.dirname(__file__), "..", "model", "icp_model.joblib")
 
@@ -54,6 +54,8 @@ def score_company(company: Dict) -> Dict:
     )[:3]
 
     company["icp_score"] = icp_score
-    company["score_breakdown"] = {name: round(float(val), 3) for name, val in top_contributions}
+    company["score_breakdown"] = {
+        FEATURE_LABELS.get(name, name): round(float(val), 3) for name, val in top_contributions
+    }
     company["score_method"] = "xgboost_shap_v1"
     return company

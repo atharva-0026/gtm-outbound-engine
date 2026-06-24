@@ -27,7 +27,6 @@ REGULATORY_FLAGS = [
 FEATURE_NAMES = [
     "employee_count_log",
     "funding_stage_ord",
-    "num_regulatory_flags",
     "flag_crypto",
     "flag_cross_border_payments",
     "flag_high_risk_corridors",
@@ -35,6 +34,18 @@ FEATURE_NAMES = [
     "flag_neobank",
     "flag_lending",
 ]
+
+FEATURE_LABELS = {
+    "employee_count_log": "company size",
+    "funding_stage_ord": "funding stage",
+    "num_regulatory_flags": "regulatory complexity",
+    "flag_crypto": "crypto exposure",
+    "flag_cross_border_payments": "cross-border payments",
+    "flag_high_risk_corridors": "high-risk corridors",
+    "flag_correspondent_banking": "correspondent banking",
+    "flag_neobank": "neobank model",
+    "flag_lending": "lending exposure",
+}
 
 
 def build_features(company: dict) -> dict:
