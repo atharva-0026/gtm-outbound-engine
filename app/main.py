@@ -4,7 +4,7 @@ from typing import List, Optional
 
 from app.enrichment import enrich_companies
 from app.scoring import score_company
-from app.personalize import generate_outreach
+from app.rag_personalize import generate_outreach_rag as generate_outreach
 
 app = FastAPI(title="GTM Outbound Engine")
 
