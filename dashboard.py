@@ -17,6 +17,7 @@ from app.features import FEATURE_LABELS
 from app.personalize import generate_outreach as generate_outreach_template
 from app.rag_personalize import generate_outreach_rag
 from app.scoring import score_company
+from app.signals import check_for_new_signals
 from run_pipeline import load_csv
 
 st.set_page_config(page_title="GTM Terminal", page_icon="📡", layout="wide")
@@ -129,10 +130,36 @@ html, body, [class*="css"] {
     padding-left: 10px;
     margin: 4px 0;
 }
+
+.signal-panel {
+    background: #1C1408;
+    border: 1px solid #92400E;
+    border-radius: 2px;
+    padding: 12px 16px;
+    margin-bottom: 1.2rem;
+}
+.signal-panel-title { font-size: 12px; color: #FBBF24; letter-spacing: 0.5px; margin-bottom: 6px; }
+.signal-item { font-size: 13px; color: #E5E7EB; margin: 4px 0; }
+.signal-tag {
+    font-size: 10px;
+    font-weight: 600;
+    padding: 1px 6px;
+    border-radius: 2px;
+    margin-right: 6px;
+    letter-spacing: 0.5px;
+}
 </style>
 """,
     unsafe_allow_html=True,
 )
+
+SIGNAL_TAG_COLORS = {
+    "funding": "#34D399",
+    "regulatory": "#60A5FA",
+    "partnership": "#A78BFA",
+    "acquisition": "#F59E0B",
+    "other": "#6B7280",
+}
 
 
 # ---------------------------------------------------------------- helpers --
@@ -205,6 +232,10 @@ if "results" not in st.session_state:
     st.session_state.results = []
 if "last_run" not in st.session_state:
     st.session_state.last_run = None
+if "new_signals" not in st.session_state:
+    st.session_state.new_signals = {}
+if "signals_checked_at" not in st.session_state:
+    st.session_state.signals_checked_at = None
 
 ollama_up = check_ollama()
 model_up = model_ready()
@@ -234,6 +265,11 @@ with st.sidebar:
     st.markdown(f"MODEL &nbsp; {'🟢 loaded' if model_up else '🔴 run train_model.py'}", unsafe_allow_html=True)
     st.markdown(f"OLLAMA &nbsp; {'🟢 connected' if ollama_up else '🟡 unreachable (will use template)'}", unsafe_allow_html=True)
 
+    st.markdown("---")
+    check_signals_clicked = st.button("🔔 CHECK SIGNALS", use_container_width=True)
+    if st.session_state.get("signals_checked_at"):
+        st.caption(f"Last checked: {st.session_state.signals_checked_at}")
+
 if run_clicked and companies:
     progress = st.progress(0, text="Starting...")
     results = []
@@ -247,6 +283,11 @@ if run_clicked and companies:
     for r in results:
         st.session_state[f"subject_{r['company_name']}"] = r["email_draft"]["subject"]
         st.session_state[f"body_{r['company_name']}"] = r["email_draft"]["body"]
+
+if check_signals_clicked and companies:
+    with st.spinner("Checking public signals (Google News)..."):
+        st.session_state.new_signals = check_for_new_signals(companies)
+    st.session_state.signals_checked_at = datetime.now().strftime("%H:%M:%S")
 
 results = st.session_state.results
 
@@ -266,6 +307,21 @@ st.markdown(
 """,
     unsafe_allow_html=True,
 )
+
+if st.session_state.new_signals:
+    panel_html = '<div class="signal-panel"><div class="signal-panel-title">🔔 NEW SIGNALS SINCE LAST CHECK</div>'
+    for company_name, sigs in st.session_state.new_signals.items():
+        for s in sigs:
+            tag_color = SIGNAL_TAG_COLORS.get(s["category"], "#6B7280")
+            panel_html += (
+                f'<div class="signal-item">'
+                f'<span class="signal-tag" style="background:{tag_color}22; color:{tag_color};">{s["category"].upper()}</span>'
+                f'<b>{html.escape(company_name)}</b> — {html.escape(s["title"])}'
+                f"</div>"
+            )
+    panel_html += "</div>"
+    st.markdown(panel_html, unsafe_allow_html=True)
+    st.caption("Recommended: re-run the pipeline for these accounts to pick up the new context.")
 
 if not results:
     st.info("Select a lead list in the sidebar and click RUN PIPELINE.")

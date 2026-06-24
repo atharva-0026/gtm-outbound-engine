@@ -3,3 +3,4 @@ __pycache__/
 pipeline_output.json
 .DS_Store
 .env
+data/signal_state.json

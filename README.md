@@ -34,6 +34,8 @@ uvicorn app.main:app --reload
 - `app/retrieval.py` — hybrid retrieval (structured metadata lookup + TF-IDF semantic fallback) over the knowledge base
 - `app/rag_personalize.py` — retrieves facts, prompts a local Ollama model, generates grounded outreach copy
 - `app/personalize.py` — plain template generator, used as the fallback if Ollama is unreachable
+- `app/signals.py` — fetches public news signals (funding, licences, partnerships) via Google News RSS, diffs against last-seen state
+- `check_signals.py` — CLI for checking signals, meant to run on a schedule
 - `app/main.py` — FastAPI wrapper, `/pipeline` runs the full motion end-to-end
 - `run_pipeline.py` — CLI runner, no server needed, writes `pipeline_output.json`
 - `train_model.py` — generates the training data and trains the scoring model
@@ -112,8 +114,31 @@ changes.
 2. **Get real labels.** Once you've run any outbound (even 20-30 sends),
    retrain the scorer on actual responded/didn't-respond outcomes instead
    of synthetic data.
-3. **Signal monitoring.** Re-score accounts automatically when a new
-   funding round or regulatory licence is announced.
+
+## Signal monitoring
+
+```bash
+python check_signals.py data/real_leads.csv
+```
+
+Checks Google News RSS per company (no API key needed) for funding,
+licence, partnership, or acquisition mentions, and prints only what's
+new since the last check — state is tracked in
+`data/signal_state.json` (gitignored, machine-specific).
+
+This is polling, not push. "Real-time" signal monitoring in practice
+almost always means checking on an interval, not a literal live feed.
+To make it actually monitor instead of just check-once, schedule it —
+see the docstring at the top of `check_signals.py` for cron/launchd
+setup. Daily is reasonable for funding/licence news.
+
+The dashboard has a "🔔 CHECK SIGNALS" button in the sidebar that runs
+the same check and surfaces results inline.
+
+Classification is keyword-based (funding / regulatory / partnership /
+acquisition), not LLM-based — deliberately, so it's deterministic and
+free to run on every check. Swap `classify_signal()` for an Ollama call
+later if keyword matching starts missing things.
 
 ## Dashboard
 
