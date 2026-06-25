@@ -33,6 +33,7 @@ FEATURE_NAMES = [
     "flag_correspondent_banking",
     "flag_neobank",
     "flag_lending",
+    "has_recent_signal",
 ]
 
 FEATURE_LABELS = {
@@ -45,6 +46,7 @@ FEATURE_LABELS = {
     "flag_correspondent_banking": "correspondent banking",
     "flag_neobank": "neobank model",
     "flag_lending": "lending exposure",
+    "has_recent_signal": "active buying signal",
 }
 
 
@@ -63,4 +65,5 @@ def build_features(company: dict) -> dict:
         "flag_correspondent_banking": int("correspondent banking" in flags),
         "flag_neobank": int("neobank" in flags),
         "flag_lending": int("lending" in flags),
+        "has_recent_signal": int(bool(company.get("has_recent_signal", 0))),
     }

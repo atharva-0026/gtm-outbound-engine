@@ -8,10 +8,23 @@ Run: streamlit run dashboard.py
 """
 
 import html
+import os
 from datetime import datetime
 
 import streamlit as st
 
+# On Streamlit Community Cloud, secrets are configured in the dashboard's
+# Settings UI, not as real environment variables. Bridge them into
+# os.environ here so app/rag_personalize.py (which doesn't import
+# streamlit, by design — it also runs under the CLI and FastAPI) can read
+# GROQ_API_KEY the same way locally and in the cloud.
+try:
+    if "GROQ_API_KEY" in st.secrets:
+        os.environ["GROQ_API_KEY"] = st.secrets["GROQ_API_KEY"]
+except Exception:
+    pass  # no secrets.toml locally — fine, Ollama-only is the local default
+
+from app.closed_loop import process_new_signals
 from app.enrichment import enrich_companies
 from app.features import FEATURE_LABELS
 from app.personalize import generate_outreach as generate_outreach_template
@@ -203,6 +216,10 @@ def check_ollama():
         return False
 
 
+def groq_configured():
+    return bool(os.environ.get("GROQ_API_KEY"))
+
+
 def model_ready():
     try:
         score_company({"company_name": "_probe_", "employee_count": 100, "regulatory_flags": []})
@@ -234,10 +251,13 @@ if "last_run" not in st.session_state:
     st.session_state.last_run = None
 if "new_signals" not in st.session_state:
     st.session_state.new_signals = {}
+if "signal_rescore_info" not in st.session_state:
+    st.session_state.signal_rescore_info = {}
 if "signals_checked_at" not in st.session_state:
     st.session_state.signals_checked_at = None
 
 ollama_up = check_ollama()
+groq_ready = groq_configured()
 model_up = model_ready()
 
 # --------------------------------------------------------------- sidebar --
@@ -257,13 +277,19 @@ with st.sidebar:
 
             companies = load_csv(io.StringIO(uploaded.getvalue().decode("utf-8")))
 
-    use_rag = st.checkbox("AI-personalized drafts (local Ollama)", value=True)
+    use_rag = st.checkbox("AI-personalized drafts (Ollama/Groq)", value=True)
 
     run_clicked = st.button("▶ RUN PIPELINE", use_container_width=True)
 
     st.markdown("---")
     st.markdown(f"MODEL &nbsp; {'🟢 loaded' if model_up else '🔴 run train_model.py'}", unsafe_allow_html=True)
-    st.markdown(f"OLLAMA &nbsp; {'🟢 connected' if ollama_up else '🟡 unreachable (will use template)'}", unsafe_allow_html=True)
+    if ollama_up:
+        llm_status = "🟢 Ollama connected"
+    elif groq_ready:
+        llm_status = "🟢 Groq connected (cloud)"
+    else:
+        llm_status = "🟡 no LLM — using template"
+    st.markdown(f"LLM &nbsp; {llm_status}", unsafe_allow_html=True)
 
     st.markdown("---")
     check_signals_clicked = st.button("🔔 CHECK SIGNALS", use_container_width=True)
@@ -286,8 +312,34 @@ if run_clicked and companies:
 
 if check_signals_clicked and companies:
     with st.spinner("Checking public signals (Google News)..."):
-        st.session_state.new_signals = check_for_new_signals(companies)
+        new_signals = check_for_new_signals(companies)
     st.session_state.signals_checked_at = datetime.now().strftime("%H:%M:%S")
+
+    if new_signals:
+        by_name = {c["company_name"]: c for c in companies}
+        before_scores = {
+            name: score_company(enrich_companies([by_name[name]])[0])["icp_score"]
+            for name in new_signals
+            if name in by_name
+        }
+        with st.spinner(f"Re-scoring {len(new_signals)} accounts with new signals..."):
+            rescored = process_new_signals(companies, new_signals, use_rag=use_rag)
+
+        results_by_name = {r["company_name"]: r for r in st.session_state.results}
+        for name, updated in rescored.items():
+            updated["score_delta"] = updated["icp_score"] - before_scores.get(name, updated["icp_score"])
+            results_by_name[name] = updated
+            st.session_state[f"subject_{name}"] = updated["email_draft"]["subject"]
+            st.session_state[f"body_{name}"] = updated["email_draft"]["body"]
+
+        st.session_state.results = sorted(results_by_name.values(), key=lambda r: r["icp_score"], reverse=True)
+        st.session_state.new_signals = new_signals
+        st.session_state.signal_rescore_info = {
+            name: {"before": before_scores.get(name), "after": rescored[name]["icp_score"]} for name in rescored
+        }
+    else:
+        st.session_state.new_signals = {}
+        st.session_state.signal_rescore_info = {}
 
 results = st.session_state.results
 
@@ -309,19 +361,31 @@ st.markdown(
 )
 
 if st.session_state.new_signals:
-    panel_html = '<div class="signal-panel"><div class="signal-panel-title">🔔 NEW SIGNALS SINCE LAST CHECK</div>'
+    panel_html = '<div class="signal-panel"><div class="signal-panel-title">🔔 NEW SIGNALS — RE-SCORED AUTOMATICALLY</div>'
     for company_name, sigs in st.session_state.new_signals.items():
+        rescore = st.session_state.signal_rescore_info.get(company_name)
+        delta_html = ""
+        if rescore and rescore["before"] is not None:
+            delta = rescore["after"] - rescore["before"]
+            if abs(delta) >= 0.1:
+                delta_color = "#34D399" if delta > 0 else "#EF4444"
+                delta_html = (
+                    f' <span style="color:{delta_color};">'
+                    f'({rescore["before"]:.1f} → {rescore["after"]:.1f})</span>'
+                )
+            else:
+                delta_html = ' <span style="color:#6B7280;">(score unchanged)</span>'
         for s in sigs:
             tag_color = SIGNAL_TAG_COLORS.get(s["category"], "#6B7280")
             panel_html += (
                 f'<div class="signal-item">'
                 f'<span class="signal-tag" style="background:{tag_color}22; color:{tag_color};">{s["category"].upper()}</span>'
-                f'<b>{html.escape(company_name)}</b> — {html.escape(s["title"])}'
+                f'<b>{html.escape(company_name)}</b> — {html.escape(s["title"])}{delta_html}'
                 f"</div>"
             )
     panel_html += "</div>"
     st.markdown(panel_html, unsafe_allow_html=True)
-    st.caption("Recommended: re-run the pipeline for these accounts to pick up the new context.")
+    st.caption("Drafts for these accounts were regenerated with the news worked in.")
 
 if not results:
     st.info("Select a lead list in the sidebar and click RUN PIPELINE.")

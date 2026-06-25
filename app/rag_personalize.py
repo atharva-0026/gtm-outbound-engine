@@ -1,19 +1,21 @@
 """
 RAG-based outreach generation.
 
-Retrieves grounded facts (app/retrieval.py) and passes them to a local
-LLM via Ollama for generation, instead of filling a fixed template.
-Same retrieve-then-generate pattern as the SAR narrative generator
-(LangChain + ChromaDB + Llama 3.1), retargeted from compliance
-narratives to outreach copy.
+Retrieves grounded facts (app/retrieval.py) and passes them to an LLM
+for generation, instead of filling a fixed template. Same retrieve-then-
+generate pattern as the SAR narrative generator (LangChain + ChromaDB +
+Llama 3.1), retargeted from compliance narratives to outreach copy.
 
-Requires Ollama running locally with a model pulled:
+Three-tier fallback, in order:
+1. Local Ollama (free, unlimited, what you use day-to-day):
     ollama pull llama3.1
-    ollama serve   (usually already running as a background service)
-
-Falls back to the plain template (app/personalize.py) if Ollama isn't
-reachable, times out, or returns something unparseable — so the
-pipeline never breaks just because the model server is down.
+2. Groq API (used automatically when Ollama is unreachable — this is
+   what makes the cloud-hosted demo work, since Streamlit Community
+   Cloud has no GPU/persistent compute to run Ollama on). Free tier,
+   no credit card. Get a key at console.groq.com and set GROQ_API_KEY
+   as an environment variable (locally) or a Streamlit secret (cloud).
+3. Plain template (app/personalize.py) if neither LLM is reachable —
+   the pipeline never breaks just because a model server is down.
 """
 
 import json
@@ -29,6 +31,10 @@ OLLAMA_URL = os.environ.get("OLLAMA_URL", "http://localhost:11434/api/generate")
 OLLAMA_MODEL = os.environ.get("OLLAMA_MODEL", "llama3.1")
 OLLAMA_TIMEOUT_SECONDS = 30
 
+GROQ_URL = "https://api.groq.com/openai/v1/chat/completions"
+GROQ_MODEL = os.environ.get("GROQ_MODEL", "llama-3.1-8b-instant")
+GROQ_TIMEOUT_SECONDS = 30
+
 
 def _call_ollama(prompt: str) -> str:
     response = requests.post(
@@ -38,6 +44,39 @@ def _call_ollama(prompt: str) -> str:
     )
     response.raise_for_status()
     return response.json()["response"]
+
+
+def _call_groq(prompt: str) -> str:
+    api_key = os.environ.get("GROQ_API_KEY")
+    if not api_key:
+        raise RuntimeError("GROQ_API_KEY not set")
+
+    response = requests.post(
+        GROQ_URL,
+        headers={"Authorization": f"Bearer {api_key}"},
+        json={
+            "model": GROQ_MODEL,
+            "messages": [{"role": "user", "content": prompt}],
+            "temperature": 0.7,
+        },
+        timeout=GROQ_TIMEOUT_SECONDS,
+    )
+    response.raise_for_status()
+    return response.json()["choices"][0]["message"]["content"]
+
+
+def _call_llm(prompt: str):
+    """Tries Ollama, then Groq. Returns (text, method_used). Raises only
+    if both backends fail."""
+    try:
+        return _call_ollama(prompt), f"rag_ollama_{OLLAMA_MODEL}"
+    except Exception as ollama_error:
+        try:
+            return _call_groq(prompt), f"rag_groq_{GROQ_MODEL}"
+        except Exception as groq_error:
+            raise RuntimeError(
+                f"Ollama failed ({ollama_error}); Groq failed ({groq_error})"
+            )
 
 
 def _build_prompt(company: dict, facts: list) -> str:
@@ -70,14 +109,16 @@ def _extract_json(text: str) -> dict:
     return json.loads(match.group(0))
 
 
-def generate_outreach_rag(company: dict) -> dict:
+def generate_outreach_rag(company: dict, extra_context: list = None) -> dict:
     name = company.get("company_name", "there")
     score = company.get("icp_score", 0)
 
     try:
         facts = retrieve_for_company(company)
+        if extra_context:
+            facts = list(facts) + list(extra_context)
         prompt = _build_prompt(company, facts)
-        raw = _call_ollama(prompt)
+        raw, method = _call_llm(prompt)
         parsed = _extract_json(raw)
 
         return {
@@ -86,7 +127,7 @@ def generate_outreach_rag(company: dict) -> dict:
             "subject": parsed["subject"],
             "body": parsed["body"],
             "retrieved_facts": facts,
-            "generation_method": f"rag_ollama_{OLLAMA_MODEL}",
+            "generation_method": method,
         }
     except Exception as e:
         fallback = _template_outreach(company)

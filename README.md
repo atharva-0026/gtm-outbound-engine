@@ -35,7 +35,8 @@ uvicorn app.main:app --reload
 - `app/rag_personalize.py` — retrieves facts, prompts a local Ollama model, generates grounded outreach copy
 - `app/personalize.py` — plain template generator, used as the fallback if Ollama is unreachable
 - `app/signals.py` — fetches public news signals (funding, licences, partnerships) via Google News RSS, diffs against last-seen state
-- `check_signals.py` — CLI for checking signals, meant to run on a schedule
+- `app/closed_loop.py` — decides whether a detected signal should move the score (funding-stage changes only, with a no-regression guard) and always refreshes the draft with the news worked in
+- `check_signals.py` — CLI for checking signals; any new signal triggers automatic re-score + redraft
 - `app/main.py` — FastAPI wrapper, `/pipeline` runs the full motion end-to-end
 - `run_pipeline.py` — CLI runner, no server needed, writes `pipeline_output.json`
 - `train_model.py` — generates the training data and trains the scoring model
@@ -140,6 +141,36 @@ acquisition), not LLM-based — deliberately, so it's deterministic and
 free to run on every check. Swap `classify_signal()` for an Ollama call
 later if keyword matching starts missing things.
 
+## Closed-loop re-scoring
+
+A detected signal doesn't just get printed — `app/closed_loop.py`
+decides what to do with it:
+
+- **Funding signals** that mention a recognizable stage ("Series C",
+  "IPO") update `funding_stage` *only if* it's later than what's on
+  file (a no-regression guard — a stale article mentioning an old seed
+  round shouldn't downgrade a company already at Series C). The account
+  then gets genuinely re-scored, and the ICP score can actually move,
+  because a real input feature changed.
+- **Every signal**, regardless of category, gets the outreach draft
+  regenerated with the news injected as fresh context — even when it
+  doesn't move the score. An acquisition doesn't change AML risk
+  exposure, but "saw you just acquired X" is still a better opener than
+  a generic one.
+
+This is a real distinction, not a hedge: in testing, a company moving
+from late-stage to public actually *lowered* its score, because the
+model's learned sweet-spot around Series B/C means an already-public
+company is a worse fit for outbound (likely has compliance solved
+in-house, longer sales cycles). That's the model surfacing something
+non-obvious, not a bug to paper over.
+
+**Not handled yet:** regulatory signals (new licences) plausibly
+*should* shift risk-exposure features too, but reliably extracting
+which licence and which jurisdiction from a free-text headline isn't
+something keyword matching can do safely. Flagged as a real gap, not
+faked with a guess.
+
 ## Dashboard
 
 ```bash
@@ -150,10 +181,43 @@ Pick a lead list in the sidebar, click RUN PIPELINE. Each row expands to
 show the SHAP breakdown and an editable outreach draft (subject + body),
 with a per-row Regenerate button that calls the RAG pipeline again for
 just that company. Sidebar shows live status for whether the model is
-trained and whether Ollama is reachable.
+trained and which LLM backend is active (Ollama / Groq / none).
 
 Toggle "AI-personalized drafts" off for a fast preview using the plain
-template instead of waiting on Ollama generation for every row.
+template instead of waiting on LLM generation for every row.
+
+## Live demo (Streamlit Community Cloud)
+
+Ollama can't run on Streamlit Community Cloud — no GPU, no persistent
+compute, just a container that runs your Python. So the hosted version
+needs a cloud LLM instead. Groq's free tier (no credit card) is the
+fallback, and `app/rag_personalize.py` already tries Ollama first, then
+Groq, then the template — locally it keeps using Ollama and never
+touches Groq; in the cloud, Ollama is unreachable so Groq picks it up
+automatically. No code branching needed for "local mode" vs "cloud
+mode."
+
+**One-time setup:**
+1. Get a free key at [console.groq.com](https://console.groq.com) — no
+   credit card required.
+2. Push this repo to GitHub (already done).
+3. Go to [share.streamlit.io](https://share.streamlit.io), sign in with
+   GitHub, click "New app."
+4. Select this repo, branch `main`, main file path `dashboard.py`.
+5. Before deploying, open "Advanced settings" → Secrets, paste:
+   ```toml
+   GROQ_API_KEY = "gsk_your_key_here"
+   ```
+6. Deploy. First load takes ~30-60s (cold start, installing
+   dependencies) — normal for the free tier, not a bug.
+
+The model file (`model/icp_model.joblib`) is already committed, so the
+cloud instance scores leads immediately without retraining.
+
+One real limitation worth knowing: the free tier sleeps after a period
+of inactivity and cold-starts on the next visit. If you're sharing the
+link with a recruiter, opening it yourself first a few minutes ahead
+avoids them landing on a slow cold start.
 
 ## Metrics to capture once you run it on real data
 
