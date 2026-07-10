@@ -234,3 +234,10 @@ gets interviews.
 1. Push this repo to GitHub (you already have the GitHub setup from Aegis)
 2. Write a 3-paragraph LinkedIn post: problem → what you built → result
 3. Apply to GTM Engineer / Growth Engineer / RevOps Engineer roles, link this repo
+
+## Testing
+
+Run tests with:
+```bash
+pytest tests/ -v
+```
