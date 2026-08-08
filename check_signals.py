@@ -40,7 +40,7 @@ def main(csv_path):
         for s in signals:
             print(f"  [{s['category'].upper()}] {s['title']}")
             print(f"    {s['link']}")
-    print(f"\nRecommended action: re-score and consider re-engaging the companies above.")
+    print("\nRecommended action: re-score and consider re-engaging the companies above.")
 
 
 if __name__ == "__main__":
