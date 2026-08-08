@@ -26,7 +26,6 @@ except Exception:
 
 from app.closed_loop import process_new_signals
 from app.enrichment import enrich_companies
-from app.features import FEATURE_LABELS
 from app.personalize import generate_outreach as generate_outreach_template
 from app.rag_personalize import generate_outreach_rag
 from app.scoring import score_company
