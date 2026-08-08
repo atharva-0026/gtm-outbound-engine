@@ -109,7 +109,7 @@ def _extract_json(text: str) -> dict:
     return json.loads(match.group(0))
 
 
-def generate_outreach_rag(company: dict, extra_context: list = None) -> dict:
+def generate_outreach_rag(company: dict, extra_context: list | None = None) -> dict:
     name = company.get("company_name", "there")
     score = company.get("icp_score", 0)
 
