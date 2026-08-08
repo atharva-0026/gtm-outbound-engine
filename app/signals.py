@@ -18,11 +18,14 @@ that diffing is the actual point of "monitoring" vs. just searching.
 """
 
 import json
+import logging
 import os
 from urllib.parse import quote
 
 import feedparser
 import requests
+
+logger = logging.getLogger(__name__)
 
 STATE_PATH = os.path.join(os.path.dirname(__file__), "..", "data", "signal_state.json")
 RSS_TIMEOUT_SECONDS = 10
@@ -57,6 +60,7 @@ def fetch_signals(company_name: str, max_results: int = 5):
         response.raise_for_status()
         feed = feedparser.parse(response.content)
     except Exception:
+        logger.warning("fetch_signals failed for %s", company_name, exc_info=True)
         return []
 
     signals = []
