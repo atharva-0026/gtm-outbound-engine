@@ -1,5 +1,3 @@
-import json
-
 import app.signals as signals
 
 
