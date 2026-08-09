@@ -19,9 +19,10 @@ import streamlit as st
 # streamlit, by design — it also runs under the CLI and FastAPI) can read
 # GROQ_API_KEY the same way locally and in the cloud.
 try:
+    from streamlit.runtime.secrets import StreamlitSecretNotFoundError
     if "GROQ_API_KEY" in st.secrets:
         os.environ["GROQ_API_KEY"] = st.secrets["GROQ_API_KEY"]
-except Exception:
+except StreamlitSecretNotFoundError:
     pass  # no secrets.toml locally — fine, Ollama-only is the local default
 
 from app.closed_loop import process_new_signals
