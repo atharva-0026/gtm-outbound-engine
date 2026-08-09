@@ -83,7 +83,7 @@ def retrieve_for_company(company: dict, k_industry: int = 2):
     """Hybrid retrieval: structured lookups first, semantic fallback only
     if the company isn't in the curated knowledge base."""
     company_name = (company.get("company_name") or "").strip()
-    flags = set(f.lower() for f in (company.get("regulatory_flags") or []))
+    flags = {f.lower() for f in (company.get("regulatory_flags") or [])}
 
     docs = []
 
