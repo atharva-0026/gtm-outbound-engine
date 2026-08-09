@@ -32,19 +32,19 @@ def root():
 
 @app.post("/enrich")
 def enrich(payload: CompanyList):
-    enriched = enrich_companies([c.dict() for c in payload.companies])
+    enriched = enrich_companies([c.model_dump() for c in payload.companies])
     return {"enriched": enriched}
 
 
 @app.post("/score")
 def score(payload: CompanyList):
-    scored = [score_company(c.dict()) for c in payload.companies]
+    scored = [score_company(c.model_dump()) for c in payload.companies]
     return {"scored": scored}
 
 
 @app.post("/personalize")
 def personalize(payload: CompanyList):
-    drafts = [generate_outreach(c.dict()) for c in payload.companies]
+    drafts = [generate_outreach(c.model_dump()) for c in payload.companies]
     return {"drafts": drafts}
 
 
@@ -53,7 +53,7 @@ def pipeline(payload: CompanyList):
     """Full GTM motion: enrich -> score -> personalize -> rank."""
     results = []
     for c in payload.companies:
-        cd = c.dict()
+        cd = c.model_dump()
         enriched = enrich_companies([cd])[0]
         scored = score_company(enriched)
         draft = generate_outreach(scored)
