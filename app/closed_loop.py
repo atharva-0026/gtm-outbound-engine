@@ -105,7 +105,7 @@ def process_new_signals(companies: list, new_signals_by_company: dict, use_rag: 
         company = by_name.get(name)
         if not company or not signals:
             continue
-        top_signal = sorted(signals, key=lambda s: SIGNAL_PRIORITY.get(s.get("category"), 5))[0]
+        top_signal = min(signals, key=lambda s: SIGNAL_PRIORITY.get(s.get("category"), 5))
         updated[name] = rescore_with_signal(company, top_signal, use_rag=use_rag)
 
     return updated
