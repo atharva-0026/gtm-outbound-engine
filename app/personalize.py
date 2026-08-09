@@ -11,7 +11,7 @@ as context, and let the model write the email instead of the template.
 from typing import Dict
 
 
-def generate_outreach(company: Dict) -> Dict:
+def generate_outreach(company: dict) -> dict:
     name = company.get("company_name", "there")
     flags = company.get("regulatory_flags", []) or []
     score = company.get("icp_score", 0)

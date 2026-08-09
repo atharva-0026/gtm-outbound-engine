@@ -1,4 +1,9 @@
-from app.closed_loop import apply_signal_updates, extract_funding_stage, process_new_signals, rescore_with_signal
+from app.closed_loop import (
+    apply_signal_updates,
+    extract_funding_stage,
+    process_new_signals,
+    rescore_with_signal,
+)
 
 
 def test_extract_funding_stage_recognizes_named_stages():

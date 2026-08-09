@@ -17,7 +17,7 @@ import joblib
 import numpy as np
 import shap
 
-from app.features import FEATURE_NAMES, FEATURE_LABELS, build_features
+from app.features import FEATURE_LABELS, FEATURE_NAMES, build_features
 
 _MODEL_PATH = os.path.join(os.path.dirname(__file__), "..", "model", "icp_model.joblib")
 
@@ -38,7 +38,7 @@ def _load():
     return _model, _explainer
 
 
-def score_company(company: Dict) -> Dict:
+def score_company(company: dict) -> dict:
     model, explainer = _load()
     company = dict(company)
 

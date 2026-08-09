@@ -5,13 +5,13 @@ Usage:
     python run_pipeline.py data/sample_leads.csv
 """
 
-import sys
 import csv
 import json
+import sys
 
 from app.enrichment import enrich_companies
-from app.scoring import score_company
 from app.rag_personalize import generate_outreach_rag as generate_outreach
+from app.scoring import score_company
 
 
 def load_csv(path):

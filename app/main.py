@@ -1,25 +1,26 @@
-from fastapi import FastAPI
-from pydantic import BaseModel
 from typing import List, Optional
 
+from fastapi import FastAPI
+from pydantic import BaseModel
+
 from app.enrichment import enrich_companies
-from app.scoring import score_company
 from app.rag_personalize import generate_outreach_rag as generate_outreach
+from app.scoring import score_company
 
 app = FastAPI(title="GTM Outbound Engine")
 
 
 class Company(BaseModel):
     company_name: str
-    industry: Optional[str] = None
-    employee_count: Optional[int] = None
-    country: Optional[str] = None
-    funding_stage: Optional[str] = None
-    regulatory_flags: Optional[List[str]] = []
+    industry: str | None = None
+    employee_count: int | None = None
+    country: str | None = None
+    funding_stage: str | None = None
+    regulatory_flags: list[str] | None = []
 
 
 class CompanyList(BaseModel):
-    companies: List[Company]
+    companies: list[Company]
 
 
 @app.get("/")

@@ -73,7 +73,9 @@ def rescore_with_signal(company: dict, signal: dict, use_rag: bool = True) -> di
 
     enriched = enrich_companies([updated_company])[0]
 
-    from app.scoring import score_company  # local import avoids a circular import at module load
+    from app.scoring import (
+        score_company,  # local import avoids a circular import at module load
+    )
 
     scored = score_company(enriched)
 
