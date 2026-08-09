@@ -53,7 +53,7 @@ FEATURE_LABELS = {
 def build_features(company: dict) -> dict:
     employee_count = company.get("employee_count") or 50
     funding_stage = (company.get("funding_stage") or "unknown").lower()
-    flags = set(f.lower() for f in (company.get("regulatory_flags") or []))
+    flags = {f.lower() for f in (company.get("regulatory_flags") or [])}
 
     return {
         "employee_count_log": math.log1p(employee_count),
