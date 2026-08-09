@@ -1,4 +1,4 @@
-import app.signals as signals
+from app import signals
 
 
 def test_classify_funding():
