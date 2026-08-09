@@ -192,7 +192,7 @@ def render_ticker(results):
         items = []
         for r in results:
             top_label = next(iter(r["score_breakdown"]), "—")
-            arrow = "▲" if list(r["score_breakdown"].values())[0] >= 0 else "▼"
+            arrow = "▲" if next(iter(r["score_breakdown"].values())) >= 0 else "▼"
             items.append(
                 f"{html.escape(r['company_name'].upper())} {r['icp_score']:.1f} "
                 f"{arrow} {html.escape(top_label.upper())}"
