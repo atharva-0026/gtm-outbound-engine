@@ -8,8 +8,6 @@ Claude API here, passing the company's regulatory_flags and icp_score
 as context, and let the model write the email instead of the template.
 """
 
-from typing import Dict
-
 
 def generate_outreach(company: dict) -> dict:
     name = company.get("company_name", "there")

@@ -11,8 +11,6 @@ API keys. Swap this for real calls when you're ready:
 Keep the function signature the same so main.py never has to change.
 """
 
-from typing import Dict, List
-
 
 def enrich_companies(companies: list[dict]) -> list[dict]:
     enriched = []

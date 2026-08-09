@@ -11,7 +11,6 @@ that file for what the model is trained on and why).
 """
 
 import os
-from typing import Dict
 
 import joblib
 import numpy as np
