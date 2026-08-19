@@ -57,6 +57,12 @@ def generate_synthetic_dataset(n=1200, seed=RANDOM_SEED):
         if rng.random() < 0.20:
             flags.add("lending")
 
+        # Companies with a recent buying signal (funding round, new
+        # licence, partnership — see app/closed_loop.py) are rare in any
+        # given snapshot but meaningfully more likely to convert, which
+        # is the whole point of tracking signals in the first place.
+        has_recent_signal = int(rng.random() < 0.12)
+
         employee_log = math.log1p(employee_count)
         flag_crypto = int("crypto" in flags)
         flag_cb = int("cross-border payments" in flags)
@@ -81,6 +87,7 @@ def generate_synthetic_dataset(n=1200, seed=RANDOM_SEED):
             + 0.6 * (flag_crypto * flag_cb)
             - 0.18 * employee_log
             + 0.7 * funding_component
+            + 0.9 * has_recent_signal
             + rng.normal(0, 0.6)
         )
         p = 1 / (1 + math.exp(-logit))
@@ -97,6 +104,7 @@ def generate_synthetic_dataset(n=1200, seed=RANDOM_SEED):
                 "flag_correspondent_banking": flag_corr,
                 "flag_neobank": flag_neo,
                 "flag_lending": flag_lend,
+                "has_recent_signal": has_recent_signal,
                 "employee_count": employee_count,
                 "funding_stage": funding_stage,
                 "converted": label,
