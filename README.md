@@ -99,12 +99,14 @@ downloaded neural embedding model — fully offline, no model download on
 first run. Swap in sentence-transformers later for denser retrieval if
 the curated knowledge base grows past what TF-IDF handles well.
 
-> **Security note:** ChromaDB has an unpatched pre-auth RCE
-> (CVE-2026-45829) in its HTTP server mode as of 1.5.9. This repo only
-> ever calls `chromadb.Client()` in-process — never `HttpClient()` or a
-> standalone `chroma run` server — so the vulnerable code path is never
-> reached. Don't switch to server mode until upstream ships a fix.
-> See `tests/test_security.py`.
+> **Security note:** ChromaDB has 4 unpatched advisories as of 1.5.9,
+> including a pre-auth RCE (CVE-2026-45829) and cross-tenant
+> authorization bypasses (CVE-2026-45830, CVE-2026-45831, CVE-2026-45833)
+> — all require its HTTP server mode. This repo only ever calls
+> `chromadb.Client()` in-process — never `HttpClient()` or a
+> standalone `chroma run` server — so none of these code paths are
+> reached. Don't switch to server mode until upstream ships fixes.
+> See `tests/test_security.py` and `SECURITY.md`.
 
 **If Ollama isn't running**, `rag_personalize.py` automatically falls
 back to the plain template in `personalize.py` and tags the result with
