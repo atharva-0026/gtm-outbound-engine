@@ -79,8 +79,21 @@ def fetch_signals(company_name: str, max_results: int = 5):
 def _load_state():
     if not os.path.exists(STATE_PATH):
         return {}
-    with open(STATE_PATH) as f:
-        return json.load(f)
+    try:
+        with open(STATE_PATH) as f:
+            return json.load(f)
+    except (json.JSONDecodeError, OSError):
+        # This runs unattended via cron/launchd (see module docstring) —
+        # nobody's watching it fail. A corrupted/truncated state file
+        # (e.g. a crash mid-write) previously crashed every future run
+        # permanently, with no recovery path. Falling back to empty
+        # state just means the next run treats all currently-seen
+        # signals as "new" once, which is far better than a dead monitor.
+        logger.warning(
+            "signal_state.json is corrupted or unreadable, starting from "
+            "empty state", exc_info=True,
+        )
+        return {}
 
 
 def _save_state(state):
