@@ -18,10 +18,19 @@ def load_csv(path):
     companies = []
     with open(path, newline="") as f:
         reader = csv.DictReader(f)
-        for row in reader:
-            row["employee_count"] = int(row["employee_count"])
+        for i, row in enumerate(reader, start=2):  # start=2: header is line 1
+            name = row.get("company_name", f"<row {i}>")
+            try:
+                row["employee_count"] = int(row["employee_count"])
+            except (ValueError, KeyError):
+                print(
+                    f"WARNING: skipping '{name}' (line {i}) — invalid or missing "
+                    f"employee_count: {row.get('employee_count')!r}",
+                    file=sys.stderr,
+                )
+                continue
             row["regulatory_flags"] = [
-                f.strip() for f in row["regulatory_flags"].split(",") if f.strip()
+                f.strip() for f in (row.get("regulatory_flags") or "").split(",") if f.strip()
             ]
             companies.append(row)
     return companies
