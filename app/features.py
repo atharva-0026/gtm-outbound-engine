@@ -51,7 +51,15 @@ FEATURE_LABELS = {
 
 
 def build_features(company: dict) -> dict:
-    employee_count = company.get("employee_count") or 50
+    # `or 50` (rather than an explicit None check) would silently treat
+    # a genuinely reported 0 employees the same as a missing value,
+    # since 0 is falsy in Python - `0 or 50` evaluates to 50. A
+    # pre-launch startup with 0 employees on file is exactly the kind
+    # of lead this tool might process, so this must distinguish
+    # "missing" from "explicitly zero".
+    employee_count = company.get("employee_count")
+    if employee_count is None:
+        employee_count = 50
     funding_stage = (company.get("funding_stage") or "unknown").lower()
     flags = {f.lower() for f in (company.get("regulatory_flags") or [])}
 
