@@ -41,7 +41,19 @@ def extract_funding_stage(title: str):
     if re.search(r"series [d-z]\b", lowered):
         return "late-stage"
 
-    candidates = [s for s in FUNDING_STAGE_ORDER if s != "unknown" and s in lowered]
+    # "public" is deliberately excluded here — it's already matched
+    # precisely above via "ipo"/"goes public". As a bare substring
+    # check it's too generic and false-positives on completely
+    # unrelated headlines ("public health", "public criticism",
+    # "public records"), which would incorrectly promote funding_stage
+    # to its highest tier from an unrelated news mention. Confirmed
+    # reachable: "Startup raises new funding amid public criticism
+    # over fees" is correctly classified as a funding signal by
+    # app/signals.py, so this path does get exercised on real headlines.
+    candidates = [
+        s for s in FUNDING_STAGE_ORDER
+        if s not in ("unknown", "public") and s in lowered
+    ]
     if not candidates:
         return None
     return max(candidates, key=lambda s: FUNDING_STAGE_ORDER[s])
