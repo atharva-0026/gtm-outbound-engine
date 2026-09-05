@@ -20,7 +20,6 @@ Three-tier fallback, in order:
 
 import json
 import os
-import re
 
 import requests
 
@@ -103,10 +102,50 @@ Respond with ONLY valid JSON, no other text, in this exact format:
 
 
 def _extract_json(text: str) -> dict:
-    match = re.search(r"\{.*\}", text, re.DOTALL)
-    if not match:
+    r"""
+    Extract the first complete, balanced JSON object from text.
+
+    The previous implementation used re.search(r"\{.*\}", text, re.DOTALL)
+    — greedy, so it spans from the FIRST '{' to the LAST '}' anywhere in
+    the text. LLMs regularly add trailing commentary despite being told
+    "respond with ONLY valid JSON, no other text" (small local models
+    especially), and if that commentary contains even one stray brace
+    (e.g. "Note: {this follows the format}"), the greedy match swallows
+    it too, producing invalid combined JSON and silently falling back to
+    the plain template — a real, observed failure mode, not theoretical.
+
+    This scans for the first '{' and walks forward counting brace depth,
+    correctly stopping at the matching close brace regardless of what
+    comes after it.
+    """
+    start = text.find("{")
+    if start == -1:
         raise ValueError("No JSON object found in model output")
-    return json.loads(match.group(0))
+
+    depth = 0
+    in_string = False
+    escape = False
+    for i in range(start, len(text)):
+        char = text[i]
+        if escape:
+            escape = False
+            continue
+        if char == "\\":
+            escape = True
+            continue
+        if char == '"':
+            in_string = not in_string
+            continue
+        if in_string:
+            continue
+        if char == "{":
+            depth += 1
+        elif char == "}":
+            depth -= 1
+            if depth == 0:
+                return json.loads(text[start:i + 1])
+
+    raise ValueError("No complete JSON object found in model output")
 
 
 def generate_outreach_rag(company: dict, extra_context: list | None = None) -> dict:
