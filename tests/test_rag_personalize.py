@@ -58,3 +58,36 @@ def test_extra_context_is_included_when_llm_succeeds(monkeypatch):
     rp.generate_outreach_rag(company, extra_context=["Recent news (funding): Acme raises $10M"])
 
     assert "Acme raises $10M" in captured_prompt["text"]
+
+
+def test_extract_json_plain_object():
+    assert rp._extract_json('{"subject": "a", "body": "b"}') == {"subject": "a", "body": "b"}
+
+
+def test_extract_json_with_leading_commentary():
+    """LLMs commonly ignore 'respond with ONLY valid JSON' and add a
+    lead-in sentence."""
+    text = 'Sure, here you go:\n{"subject": "a", "body": "b"}'
+    assert rp._extract_json(text) == {"subject": "a", "body": "b"}
+
+
+def test_extract_json_with_trailing_commentary_containing_a_brace():
+    """Regression test: the previous greedy regex implementation
+    (re.search(r'\\{.*\\}', text, re.DOTALL)) spanned from the first '{'
+    to the LAST '}' anywhere in the text, so trailing commentary
+    containing even one stray brace produced invalid combined JSON and
+    silently fell back to the plain template. Confirmed this exact
+    scenario used to raise JSONDecodeError before the fix."""
+    text = '{"subject": "a", "body": "b"}\n\nNote: {this follows the format}'
+    assert rp._extract_json(text) == {"subject": "a", "body": "b"}
+
+
+def test_extract_json_with_brace_nested_inside_string_value():
+    text = '{"subject": "a", "body": "Saw your {Series B} round"}'
+    assert rp._extract_json(text) == {"subject": "a", "body": "Saw your {Series B} round"}
+
+
+def test_extract_json_raises_when_no_json_present():
+    import pytest
+    with pytest.raises(ValueError, match="No JSON object found"):
+        rp._extract_json("this response has no json at all")
