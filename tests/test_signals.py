@@ -51,3 +51,22 @@ def test_fetch_signals_returns_empty_list_on_network_failure(monkeypatch):
 
     monkeypatch.setattr(signals.requests, "get", raise_error)
     assert signals.fetch_signals("AnyCompany") == []
+
+
+def test_load_state_recovers_from_corrupted_state_file(tmp_path, monkeypatch):
+    """Regression test: check_signals.py runs unattended via cron, so a
+    corrupted/truncated signal_state.json (e.g. a crash mid-write)
+    must not permanently crash every future run."""
+    state_file = tmp_path / "signal_state.json"
+    state_file.write_text("{this is not valid json")
+    monkeypatch.setattr(signals, "STATE_PATH", str(state_file))
+
+    result = signals._load_state()
+    assert result == {}
+
+
+def test_load_state_returns_empty_dict_when_file_missing(tmp_path, monkeypatch):
+    state_file = tmp_path / "does_not_exist.json"
+    monkeypatch.setattr(signals, "STATE_PATH", str(state_file))
+
+    assert signals._load_state() == {}
