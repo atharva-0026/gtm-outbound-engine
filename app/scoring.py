@@ -49,7 +49,7 @@ def score_company(company: dict) -> dict:
 
     shap_values = explainer.shap_values(x)[0]
     top_contributions = sorted(
-        zip(FEATURE_NAMES, shap_values), key=lambda kv: abs(kv[1]), reverse=True
+        zip(FEATURE_NAMES, shap_values, strict=True), key=lambda kv: abs(kv[1]), reverse=True
     )[:3]
 
     company["icp_score"] = icp_score
