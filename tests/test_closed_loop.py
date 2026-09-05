@@ -19,6 +19,32 @@ def test_extract_funding_stage_recognizes_ipo():
     assert extract_funding_stage("Acme goes public in NYSE debut") == "public"
 
 
+def test_extract_funding_stage_recognizes_ipo_keyword():
+    assert extract_funding_stage("Acme announces IPO plans for Q3") == "public"
+
+
+def test_extract_funding_stage_does_not_false_positive_on_unrelated_public_mentions():
+    """Regression test: 'public' was included in the generic
+    substring-matching fallback, so any headline mentioning 'public'
+    in an unrelated sense (public health, public criticism, public
+    records) incorrectly extracted the highest funding stage tier.
+    Confirmed reachable through the real pipeline: this exact headline
+    is classified as a funding signal by app/signals.py's keyword
+    matching (it contains 'raises'), so this path does get exercised
+    on real headlines, not just a contrived example."""
+    result = extract_funding_stage("Startup raises new funding amid public criticism over fees")
+    assert result != "public"
+    # No named stage is mentioned, so this should extract nothing at all.
+    assert result is None
+
+
+def test_extract_funding_stage_public_mention_does_not_override_named_stage():
+    """Even if a headline mentions both a real stage and an unrelated
+    'public' reference, the named stage must win, not 'public'."""
+    result = extract_funding_stage("Acme raises Series B round amid public scrutiny of fintech sector")
+    assert result == "series b"
+
+
 def test_extract_funding_stage_returns_none_for_non_funding_text():
     assert extract_funding_stage("Acme partners with Visa") is None
 
