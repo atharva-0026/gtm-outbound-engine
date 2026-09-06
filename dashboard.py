@@ -27,6 +27,7 @@ except StreamlitSecretNotFoundError:
 
 from app.closed_loop import process_new_signals
 from app.enrichment import enrich_companies
+from app.features import find_duplicate_company_names
 from app.personalize import generate_outreach as generate_outreach_template
 from app.rag_personalize import generate_outreach_rag
 from app.scoring import score_company
@@ -285,13 +286,7 @@ with st.sidebar:
     # silently collapse into one entry with no indication anything was
     # lost. Warn instead of letting that happen invisibly.
     if companies:
-        seen = set()
-        duplicate_names = set()
-        for c in companies:
-            name = c.get("company_name")
-            if name in seen:
-                duplicate_names.add(name)
-            seen.add(name)
+        duplicate_names = find_duplicate_company_names(companies)
         if duplicate_names:
             st.warning(
                 f"⚠️ Duplicate company name(s) found: {', '.join(sorted(duplicate_names))}. "
