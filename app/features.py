@@ -75,3 +75,22 @@ def build_features(company: dict) -> dict:
         "flag_lending": int("lending" in flags),
         "has_recent_signal": int(bool(company.get("has_recent_signal", 0))),
     }
+
+
+def find_duplicate_company_names(companies: list[dict]) -> set[str]:
+    """
+    Returns the set of company_name values that appear more than once
+    in companies. company_name is used as an implicit unique key in
+    several places (dashboard.py's session_state keys, by_name lookups)
+    - duplicates would silently collapse to one entry with no
+    indication anything was lost, so callers should warn the user
+    rather than let that happen invisibly.
+    """
+    seen = set()
+    duplicates = set()
+    for c in companies:
+        name = c.get("company_name")
+        if name in seen:
+            duplicates.add(name)
+        seen.add(name)
+    return duplicates

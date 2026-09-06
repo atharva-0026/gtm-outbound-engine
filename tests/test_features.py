@@ -32,6 +32,46 @@ def test_explicit_none_employee_count_still_defaults_to_fifty():
     assert feats_none["employee_count_log"] == feats_missing["employee_count_log"]
 
 
+def test_find_duplicate_company_names_detects_duplicates():
+    """Regression test: dashboard.py used company_name as an implicit
+    unique key (session_state keys, by_name lookups). Two companies
+    sharing a name previously collapsed silently with no warning -
+    this function is what now detects that so the UI can warn the user."""
+    from app.features import find_duplicate_company_names
+
+    companies = [
+        {"company_name": "Acme Corp"},
+        {"company_name": "Beta Inc"},
+        {"company_name": "Acme Corp"},
+        {"company_name": "Gamma LLC"},
+    ]
+    assert find_duplicate_company_names(companies) == {"Acme Corp"}
+
+
+def test_find_duplicate_company_names_returns_empty_set_when_all_unique():
+    from app.features import find_duplicate_company_names
+
+    companies = [{"company_name": "A"}, {"company_name": "B"}, {"company_name": "C"}]
+    assert find_duplicate_company_names(companies) == set()
+
+
+def test_find_duplicate_company_names_handles_empty_list():
+    from app.features import find_duplicate_company_names
+
+    assert find_duplicate_company_names([]) == set()
+
+
+def test_find_duplicate_company_names_detects_multiple_duplicate_groups():
+    from app.features import find_duplicate_company_names
+
+    companies = [
+        {"company_name": "Acme"}, {"company_name": "Acme"},
+        {"company_name": "Beta"}, {"company_name": "Beta"},
+        {"company_name": "Gamma"},
+    ]
+    assert find_duplicate_company_names(companies) == {"Acme", "Beta"}
+
+
 def test_regulatory_flags_are_case_insensitive():
     feats = build_features({"regulatory_flags": ["CRYPTO", "Cross-Border Payments"]})
     assert feats["flag_crypto"] == 1
