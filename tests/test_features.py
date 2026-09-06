@@ -1,5 +1,7 @@
 import math
 
+import pytest
+
 from app.features import FEATURE_NAMES, build_features
 
 
@@ -70,6 +72,17 @@ def test_find_duplicate_company_names_detects_multiple_duplicate_groups():
         {"company_name": "Gamma"},
     ]
     assert find_duplicate_company_names(companies) == {"Acme", "Beta"}
+
+
+def test_negative_employee_count_raises_clear_error_not_math_domain_error():
+    """Regression test: math.log1p(x) raises the cryptic 'math domain
+    error' for x <= -1 with no indication of what actually went wrong.
+    build_features must validate and raise a clear message instead,
+    since employee_count is a plain int with no non-negative
+    constraint at the Pydantic layer - this is reachable through the
+    real API with a negative employee_count."""
+    with pytest.raises(ValueError, match="employee_count must be non-negative"):
+        build_features({"employee_count": -500})
 
 
 def test_regulatory_flags_are_case_insensitive():
