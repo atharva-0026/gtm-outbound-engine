@@ -277,6 +277,28 @@ with st.sidebar:
 
             companies = load_csv(io.StringIO(uploaded.getvalue().decode("utf-8")))
 
+    # company_name is used as an implicit unique key throughout this
+    # dashboard (session_state keys for email drafts, the by_name
+    # lookup in signal re-scoring below). Two companies sharing the
+    # same name - realistic for any uploaded CSV, e.g. duplicate rows
+    # or two genuinely different companies with the same name - would
+    # silently collapse into one entry with no indication anything was
+    # lost. Warn instead of letting that happen invisibly.
+    if companies:
+        seen = set()
+        duplicate_names = set()
+        for c in companies:
+            name = c.get("company_name")
+            if name in seen:
+                duplicate_names.add(name)
+            seen.add(name)
+        if duplicate_names:
+            st.warning(
+                f"⚠️ Duplicate company name(s) found: {', '.join(sorted(duplicate_names))}. "
+                "Only one entry per name will be shown in results and email drafts — "
+                "rename duplicates in your CSV if they're actually different companies."
+            )
+
     use_rag = st.checkbox("AI-personalized drafts (Ollama/Groq)", value=True)
 
     run_clicked = st.button("▶ RUN PIPELINE", use_container_width=True)
