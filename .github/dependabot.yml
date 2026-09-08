@@ -1,0 +1,23 @@
+version: 2
+updates:
+  # Python dependencies (requirements.txt). Automates exactly the kind
+  # of pip-audit check that surfaced the chromadb CVEs tracked in
+  # SECURITY.md/KNOWN_ISSUES.md - opens a PR when a fix actually ships
+  # instead of relying on someone remembering to re-run pip-audit.
+  - package-ecosystem: "pip"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+    open-pull-requests-limit: 10
+    labels:
+      - "dependencies"
+
+  # GitHub Actions versions (actions/checkout, actions/setup-python)
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+    open-pull-requests-limit: 5
+    labels:
+      - "dependencies"
+      - "github-actions"
