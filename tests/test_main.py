@@ -51,6 +51,21 @@ def test_personalize_endpoint():
     assert "body" in drafts[0]
 
 
+def test_personalize_returns_real_icp_score_not_always_zero():
+    """Regression test: /personalize previously passed raw, un-scored
+    company data straight to generate_outreach(), so icp_score in the
+    response was ALWAYS 0 regardless of the company's actual risk
+    profile. SAMPLE_COMPANY has employee_count=250 and a crypto flag,
+    a real risk profile that should not score as exactly 0."""
+    res = client.post("/personalize", json={"companies": [SAMPLE_COMPANY]})
+    assert res.status_code == 200
+    drafts = res.json()["drafts"]
+    assert drafts[0]["icp_score"] != 0, (
+        "icp_score should reflect the company's actual scored risk, not "
+        "the un-enriched default of 0"
+    )
+
+
 def test_pipeline_endpoint_end_to_end():
     res = client.post(
         "/pipeline",
