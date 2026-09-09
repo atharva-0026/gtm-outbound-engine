@@ -60,6 +60,16 @@ def build_features(company: dict) -> dict:
     employee_count = company.get("employee_count")
     if employee_count is None:
         employee_count = 50
+    # math.log1p(x) raises ValueError ("math domain error") for x <= -1.
+    # employee_count is a plain int in the Pydantic model with no
+    # non-negative constraint, so a negative value (bad data entry,
+    # or a malicious/malformed request) reaches here unvalidated and
+    # crashes the entire request - not just that one company's score,
+    # since main.py's /pipeline loops over companies with no
+    # per-company error handling. Confirmed reachable through the real
+    # FastAPI endpoint with employee_count=-500.
+    if employee_count < 0:
+        raise ValueError(f"employee_count must be non-negative, got {employee_count}")
     funding_stage = (company.get("funding_stage") or "unknown").lower()
     flags = {f.lower() for f in (company.get("regulatory_flags") or [])}
 

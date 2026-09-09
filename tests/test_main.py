@@ -73,3 +73,47 @@ def test_pipeline_with_empty_companies_list():
     res = client.post("/pipeline", json={"companies": []})
     assert res.status_code == 200
     assert res.json()["ranked_leads"] == []
+
+
+def test_pipeline_isolates_one_bad_company_instead_of_crashing_whole_batch():
+    """Regression test: employee_count=-500 (valid per the Pydantic
+    model's plain int type, but causes math.log1p to raise
+    'math domain error') previously crashed the ENTIRE /pipeline
+    request, losing every other company's results too."""
+    res = client.post(
+        "/pipeline",
+        json={
+            "companies": [
+                {"company_name": "GoodCo1", "employee_count": 100, "regulatory_flags": []},
+                {"company_name": "BadCo", "employee_count": -500, "regulatory_flags": []},
+                {"company_name": "GoodCo2", "employee_count": 50, "regulatory_flags": []},
+            ]
+        },
+    )
+    assert res.status_code == 200
+    body = res.json()
+    assert len(body["ranked_leads"]) == 2
+    names = {r["company_name"] for r in body["ranked_leads"]}
+    assert names == {"GoodCo1", "GoodCo2"}
+    assert len(body["errors"]) == 1
+    assert body["errors"][0]["company_name"] == "BadCo"
+    assert "employee_count must be non-negative" in body["errors"][0]["error"]
+
+
+def test_score_isolates_one_bad_company_instead_of_crashing_whole_batch():
+    res = client.post(
+        "/score",
+        json={
+            "companies": [
+                {"company_name": "GoodCo", "employee_count": 100, "regulatory_flags": []},
+                {"company_name": "BadCo", "employee_count": -500, "regulatory_flags": []},
+            ]
+        },
+    )
+    assert res.status_code == 200
+    scored = res.json()["scored"]
+    assert len(scored) == 2
+    good = next(s for s in scored if s["company_name"] == "GoodCo")
+    bad = next(s for s in scored if s["company_name"] == "BadCo")
+    assert "icp_score" in good
+    assert "employee_count must be non-negative" in bad["error"]

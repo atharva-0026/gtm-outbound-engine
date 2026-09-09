@@ -37,7 +37,16 @@ def enrich(payload: CompanyList):
 
 @app.post("/score")
 def score(payload: CompanyList):
-    scored = [score_company(c.model_dump()) for c in payload.companies]
+    scored = []
+    for c in payload.companies:
+        try:
+            scored.append(score_company(c.model_dump()))
+        except (ValueError, TypeError) as e:
+            # A single company with bad data (e.g. a negative
+            # employee_count, which the Pydantic model's plain `int`
+            # type doesn't reject) previously crashed this entire
+            # request, losing every other company's score too.
+            scored.append({"company_name": c.company_name, "error": str(e)})
     return {"scored": scored}
 
 
@@ -51,12 +60,26 @@ def personalize(payload: CompanyList):
 def pipeline(payload: CompanyList):
     """Full GTM motion: enrich -> score -> personalize -> rank."""
     results = []
+    errors = []
     for c in payload.companies:
-        cd = c.model_dump()
-        enriched = enrich_companies([cd])[0]
-        scored = score_company(enriched)
-        draft = generate_outreach(scored)
-        results.append({**scored, "email_draft": draft})
+        try:
+            cd = c.model_dump()
+            enriched = enrich_companies([cd])[0]
+            scored = score_company(enriched)
+            draft = generate_outreach(scored)
+            results.append({**scored, "email_draft": draft})
+        except (ValueError, TypeError) as e:
+            # Confirmed reachable: a single company with
+            # employee_count=-500 (valid per the Pydantic model, which
+            # has no non-negative constraint on this plain int field)
+            # crashed the ENTIRE /pipeline request with an unhandled
+            # ValueError from math.log1p(), wiping out results for
+            # every other successfully-processable company in the
+            # batch. Isolate failures per-company instead.
+            errors.append({"company_name": c.company_name, "error": str(e)})
 
     results.sort(key=lambda x: x["icp_score"], reverse=True)
-    return {"ranked_leads": results}
+    response = {"ranked_leads": results}
+    if errors:
+        response["errors"] = errors
+    return response
