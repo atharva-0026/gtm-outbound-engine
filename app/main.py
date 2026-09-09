@@ -52,7 +52,21 @@ def score(payload: CompanyList):
 
 @app.post("/personalize")
 def personalize(payload: CompanyList):
-    drafts = [generate_outreach(c.model_dump()) for c in payload.companies]
+    # generate_outreach() reads icp_score from the company dict it's
+    # given (used in both the drafted email copy and the response's
+    # icp_score field). This endpoint previously passed raw,
+    # un-enriched, un-scored company data straight through, so
+    # icp_score was ALWAYS 0 regardless of the company's actual risk
+    # profile - confirmed reachable: a crypto exchange with obvious
+    # risk exposure still returned icp_score: 0 here. The README
+    # documents the pipeline order as "enrich -> score -> personalize
+    # -> rank", so this standalone step must run enrich+score first to
+    # match, exactly like /pipeline already does per-company.
+    drafts = []
+    for c in payload.companies:
+        enriched = enrich_companies([c.model_dump()])[0]
+        scored = score_company(enriched)
+        drafts.append(generate_outreach(scored))
     return {"drafts": drafts}
 
 
