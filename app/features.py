@@ -104,3 +104,55 @@ def find_duplicate_company_names(companies: list[dict]) -> set[str]:
             duplicates.add(name)
         seen.add(name)
     return duplicates
+
+
+def results_to_csv(results: list[dict], edited_drafts: dict[str, dict] | None = None) -> str:
+    """
+    Builds a CSV string from scored/personalized results, ready to
+    hand to a lead's CRM or email tool - the app previously had no
+    export path at all, so the only way to get scored leads out was
+    reading them off the screen by hand.
+
+    edited_drafts, if given, maps company_name -> {"subject": ..., "body": ...}
+    for drafts the user has hand-edited in the UI (dashboard.py's
+    subject_{name}/body_{name} widget state) - those take precedence
+    over the originally-generated draft, so exporting reflects what the
+    user actually sees on screen, not stale generated copy.
+    """
+    import csv
+    import io
+
+    edited_drafts = edited_drafts or {}
+    fieldnames = [
+        "company_name", "icp_score", "industry", "country",
+        "funding_stage", "employee_count", "top_driver",
+        "email_subject", "email_body",
+    ]
+
+    buf = io.StringIO()
+    writer = csv.DictWriter(buf, fieldnames=fieldnames)
+    writer.writeheader()
+
+    for r in results:
+        name = r.get("company_name", "")
+        breakdown = r.get("score_breakdown") or {}
+        top_driver = next(iter(breakdown), "")
+
+        draft = r.get("email_draft") or {}
+        edited = edited_drafts.get(name, {})
+        subject = edited.get("subject") if edited.get("subject") is not None else draft.get("subject", "")
+        body = edited.get("body") if edited.get("body") is not None else draft.get("body", "")
+
+        writer.writerow({
+            "company_name": name,
+            "icp_score": r.get("icp_score", ""),
+            "industry": r.get("industry", ""),
+            "country": r.get("country", ""),
+            "funding_stage": r.get("funding_stage", ""),
+            "employee_count": r.get("employee_count", ""),
+            "top_driver": top_driver,
+            "email_subject": subject,
+            "email_body": body,
+        })
+
+    return buf.getvalue()

@@ -27,7 +27,7 @@ except StreamlitSecretNotFoundError:
 
 from app.closed_loop import process_new_signals
 from app.enrichment import enrich_companies
-from app.features import find_duplicate_company_names
+from app.features import find_duplicate_company_names, results_to_csv
 from app.personalize import generate_outreach as generate_outreach_template
 from app.rag_personalize import generate_outreach_rag
 from app.scoring import score_company
@@ -420,6 +420,28 @@ else:
 </div>
 """,
         unsafe_allow_html=True,
+    )
+
+    # session_state[f"subject_{name}"]/[f"body_{name}"] are always
+    # pre-seeded with the generated draft right after scoring (see
+    # where results is assigned above), so reading them directly here
+    # reflects either the original draft or the user's actual edit -
+    # whichever is currently on screen - with no need to distinguish
+    # the two cases.
+    edited_drafts = {
+        r["company_name"]: {
+            "subject": st.session_state.get(f"subject_{r['company_name']}"),
+            "body": st.session_state.get(f"body_{r['company_name']}"),
+        }
+        for r in results
+    }
+
+    st.download_button(
+        "⬇ Export CSV",
+        data=results_to_csv(results, edited_drafts=edited_drafts),
+        file_name=f"gtm_leads_{datetime.now().strftime('%Y%m%d_%H%M%S')}.csv",
+        mime="text/csv",
+        use_container_width=True,
     )
 
     for rank, r in enumerate(results, start=1):
