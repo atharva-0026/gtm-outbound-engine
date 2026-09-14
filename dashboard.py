@@ -235,6 +235,17 @@ def regenerate_draft(company_result, use_rag_flag, name):
     )
     st.session_state[f"subject_{name}"] = new_draft["subject"]
     st.session_state[f"body_{name}"] = new_draft["body"]
+    # Must also update company_result["email_draft"] itself (not just
+    # the two widget-state keys above), since the "RETRIEVED FACTS" and
+    # "generation: ..." caption in the results expander read
+    # r["email_draft"] directly - not session_state. Without this,
+    # clicking Regenerate changed the visible subject/body but left
+    # those two elements permanently frozen on the PREVIOUS draft's
+    # metadata, misleading the user about where the draft on screen
+    # actually came from. company_result is the same dict object
+    # stored in st.session_state.results (Python dicts are passed by
+    # reference), so mutating it here is visible on the next rerun.
+    company_result["email_draft"] = new_draft
 
 
 def process_company(raw_company: dict, use_rag: bool) -> dict:
