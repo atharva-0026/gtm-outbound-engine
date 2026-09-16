@@ -34,7 +34,15 @@ SIGNAL_KEYWORDS = {
     "funding": ["funding", "raises", "raised", "series a", "series b", "series c", "series d", "valuation", "investment round"],
     "regulatory": ["licence", "license", "licensed", "regulatory", "approval", "approved", "registration", "authorised", "authorized"],
     "partnership": ["partnership", "partners with", "collaborat", "teams up"],
-    "acquisition": ["acquire", "acquisition", "acquired", "merger", "buys", "bought"],
+    # "buys"/"bought" deliberately excluded - too generic, false-positive
+    # on routine purchases ("Company buys new office furniture", "bought
+    # new servers"). Confirmed reachable: this category feeds directly
+    # into generate_outreach_rag's extra_context (see rescore_with_signal),
+    # so a misclassified routine purchase could get referenced as "your
+    # recent acquisition" in a real personalized email sent to a
+    # prospect. "acquire"/"acquisition"/"acquired"/"merger" already cover
+    # the overwhelming majority of genuine M&A headline phrasing.
+    "acquisition": ["acquire", "acquisition", "acquired", "merger"],
 }
 
 
