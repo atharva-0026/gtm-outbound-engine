@@ -17,6 +17,21 @@ def test_classify_acquisition():
     assert signals.classify_signal("dLocal acquires payment startup") == "acquisition"
 
 
+def test_classify_merger_as_acquisition():
+    assert signals.classify_signal("Company announces merger with rival firm") == "acquisition"
+
+
+def test_classify_does_not_false_positive_on_routine_purchases():
+    """Regression test: 'buys'/'bought' were too generic and
+    false-positived on routine purchases with no M&A activity at all.
+    Confirmed reachable and meaningful: this category feeds directly
+    into a real personalized email's context (rescore_with_signal ->
+    generate_outreach_rag), so a misclassified purchase could get
+    referenced as 'your recent acquisition' in an actual sales email."""
+    assert signals.classify_signal("Startup buys new office space amid expansion") != "acquisition"
+    assert signals.classify_signal("Company bought new servers to handle growth") != "acquisition"
+
+
 def test_classify_other_for_unrelated_headline():
     assert signals.classify_signal("Random unrelated headline about weather") == "other"
 
