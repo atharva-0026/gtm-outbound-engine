@@ -14,7 +14,7 @@ engineering.
 ```bash
 pip install -r requirements.txt
 
-# train the model once (writes model/icp_model.joblib)
+# train the model once (writes model/icp_model.json)
 python train_model.py
 
 # CLI mode — fastest way to see it work
@@ -45,7 +45,7 @@ uvicorn app.main:app --reload
 ## The model (scoring)
 
 **Run `python train_model.py` once before scoring anything** — it writes
-`model/icp_model.joblib`. The model file is committed to this repo, so a
+`model/icp_model.json`. The model file is committed to this repo, so a
 fresh clone works out of the box without retraining, but the script is
 there so you can see exactly how it was built and retrain whenever the
 data changes.
@@ -220,7 +220,7 @@ mode."
 6. Deploy. First load takes ~30-60s (cold start, installing
    dependencies) — normal for the free tier, not a bug.
 
-The model file (`model/icp_model.joblib`) is already committed, so the
+The model file (`model/icp_model.json`) is already committed, so the
 cloud instance scores leads immediately without retraining.
 
 One real limitation worth knowing: the free tier sleeps after a period

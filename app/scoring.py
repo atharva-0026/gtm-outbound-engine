@@ -12,13 +12,13 @@ that file for what the model is trained on and why).
 
 import os
 
-import joblib
 import numpy as np
 import shap
+import xgboost as xgb
 
 from app.features import FEATURE_LABELS, FEATURE_NAMES, build_features
 
-_MODEL_PATH = os.path.join(os.path.dirname(__file__), "..", "model", "icp_model.joblib")
+_MODEL_PATH = os.path.join(os.path.dirname(__file__), "..", "model", "icp_model.json")
 
 _model = None
 _explainer = None
@@ -29,10 +29,14 @@ def _load():
     if _model is None:
         if not os.path.exists(_MODEL_PATH):
             raise FileNotFoundError(
-                "Model not found at model/icp_model.joblib. "
+                "Model not found at model/icp_model.json. "
                 "Run `python train_model.py` first to train it."
             )
-        _model = joblib.load(_MODEL_PATH)
+        # Native XGBoost JSON format, not joblib/pickle: pickled
+        # XGBClassifier objects are tied to the xgboost version that
+        # wrote them and warn (or break) on load under a newer one.
+        _model = xgb.XGBClassifier()
+        _model.load_model(_MODEL_PATH)
         _explainer = shap.TreeExplainer(_model)
     return _model, _explainer
 
