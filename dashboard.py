@@ -327,10 +327,24 @@ with st.sidebar:
 if run_clicked and companies:
     progress = st.progress(0, text="Starting...")
     results = []
+    errors = []
     for i, c in enumerate(companies):
         progress.progress((i) / len(companies), text=f"Processing {c['company_name']}... ({i+1}/{len(companies)})")
-        results.append(process_company(c, use_rag))
+        try:
+            results.append(process_company(c, use_rag))
+        except (ValueError, TypeError) as e:
+            # Same isolation app/main.py's /pipeline endpoint already
+            # has: a single bad company (e.g. employee_count=-500,
+            # which raises from math.log1p() in build_features())
+            # previously crashed this entire run, losing every other
+            # company's results too.
+            errors.append({"company_name": c["company_name"], "error": str(e)})
     progress.empty()
+    if errors:
+        st.warning(
+            "⚠️ Skipped due to invalid data: "
+            + ", ".join(f"{e['company_name']} ({e['error']})" for e in errors)
+        )
     results.sort(key=lambda r: r["icp_score"], reverse=True)
     st.session_state.results = results
     st.session_state.last_run = datetime.now().strftime("%H:%M:%S")

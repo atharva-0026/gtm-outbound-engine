@@ -40,10 +40,21 @@ def main(path):
     companies = load_csv(path)
     results = []
     for c in companies:
-        enriched = enrich_companies([c])[0]
-        scored = score_company(enriched)
-        draft = generate_outreach(scored)
-        results.append({**scored, "email_draft": draft})
+        try:
+            enriched = enrich_companies([c])[0]
+            scored = score_company(enriched)
+            draft = generate_outreach(scored)
+            results.append({**scored, "email_draft": draft})
+        except (ValueError, TypeError) as e:
+            # Same isolation app/main.py's /pipeline endpoint already
+            # has: a single bad company (e.g. employee_count=-500,
+            # which raises from math.log1p() in build_features())
+            # previously crashed this entire CLI run, losing every
+            # other company's results too.
+            print(
+                f"WARNING: skipping '{c.get('company_name', '<unknown>')}' — {e}",
+                file=sys.stderr,
+            )
 
     results.sort(key=lambda x: x["icp_score"], reverse=True)
 
