@@ -2,7 +2,7 @@ import math
 
 import pytest
 
-from app.features import FEATURE_NAMES, build_features
+from app.features import FEATURE_NAMES, build_features, filter_results, score_tier
 
 
 def test_build_features_returns_all_expected_keys():
@@ -102,3 +102,33 @@ def test_funding_stage_ordering():
 def test_has_recent_signal_flag_passes_through():
     feats = build_features({"has_recent_signal": 1})
     assert feats["has_recent_signal"] == 1
+
+_RESULTS = [
+    {"company_name": "Acme Pay", "industry": "Payments", "country": "UK", "icp_score": 88.0},
+    {"company_name": "Bolt Lend", "industry": "Lending", "country": "India", "icp_score": 60.0},
+    {"company_name": "Cobalt Bank", "industry": "Neobank", "country": "UK", "icp_score": 20.0},
+]
+
+
+def test_score_tier_boundaries():
+    assert score_tier(75) == "hot"
+    assert score_tier(74.9) == "warm"
+    assert score_tier(45) == "warm"
+    assert score_tier(44.9) == "cold"
+    assert score_tier(0) == "cold"
+
+
+def test_filter_results_query_matches_name_industry_country_case_insensitive():
+    assert [r["company_name"] for r in filter_results(_RESULTS, query="lend")] == ["Bolt Lend"]
+    assert [r["company_name"] for r in filter_results(_RESULTS, query="uk")] == ["Acme Pay", "Cobalt Bank"]
+    assert [r["company_name"] for r in filter_results(_RESULTS, query="  PAYMENTS ")] == ["Acme Pay"]
+
+
+def test_filter_results_min_score_and_tiers():
+    assert [r["company_name"] for r in filter_results(_RESULTS, min_score=50)] == ["Acme Pay", "Bolt Lend"]
+    assert [r["company_name"] for r in filter_results(_RESULTS, tiers=["warm", "cold"])] == ["Bolt Lend", "Cobalt Bank"]
+
+
+def test_filter_results_defaults_return_everything_in_order():
+    assert filter_results(_RESULTS) == _RESULTS
+    assert filter_results(_RESULTS, tiers=[]) == _RESULTS

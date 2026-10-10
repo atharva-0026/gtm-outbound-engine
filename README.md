@@ -25,6 +25,10 @@ uvicorn app.main:app --reload
 # then POST to http://127.0.0.1:8000/pipeline
 ```
 
+Same commands via `make`: `make install`, `make train`, `make pipeline`,
+`make api`, `make dashboard`, `make test` (`make help` lists them all;
+`make pipeline LEADS=path.csv` scores a different file).
+
 ## What it does
 
 - `app/enrichment.py` — fills in missing firmographic fields (mocked, swappable)
@@ -191,6 +195,11 @@ show the SHAP breakdown and an editable outreach draft (subject + body),
 with a per-row Regenerate button that calls the RAG pipeline again for
 just that company. Sidebar shows live status for whether the model is
 trained and which LLM backend is active (Ollama / Groq / none).
+
+Above the list: a tier bar (HOT ≥75 / WARM ≥45 / COLD) and filters for
+free-text search (company, industry, country), tier and minimum score.
+Export CSV downloads exactly the leads currently shown, with any draft
+edits applied.
 
 Toggle "AI-personalized drafts" off for a fast preview using the plain
 template instead of waiting on LLM generation for every row.

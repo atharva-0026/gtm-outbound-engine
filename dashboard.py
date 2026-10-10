@@ -27,7 +27,7 @@ except StreamlitSecretNotFoundError:
 
 from app.closed_loop import process_new_signals
 from app.enrichment import enrich_companies
-from app.features import find_duplicate_company_names, results_to_csv
+from app.features import filter_results, find_duplicate_company_names, results_to_csv, score_tier
 from app.personalize import generate_outreach as generate_outreach_template
 from app.rag_personalize import generate_outreach_rag
 from app.scoring import score_company
@@ -41,33 +41,53 @@ st.set_page_config(page_title="GTM Terminal", page_icon="📡", layout="wide")
 st.markdown(
     """
 <style>
-@import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600;700&family=Inter:wght@400;500;600;700&display=swap');
 
-html, body, [class*="css"] {
-    font-family: 'IBM Plex Mono', monospace !important;
+:root {
+    --bg: #0A0E1A; --panel: #111827; --panel-2: #0F1522; --line: #1F2937; --line-2: #2B3647;
+    --text: #E5E7EB; --muted: #6B7280; --soft: #9CA3AF;
+    --hot: #34D399; --warm: #F59E0B; --cold: #EF4444; --amber: #FBBF24;
 }
+html, body, [class*="css"] { font-family: 'IBM Plex Mono', monospace !important; }
 
 #MainMenu, footer, header { visibility: hidden; }
-.block-container { padding-top: 0rem; padding-bottom: 2rem; max-width: 1200px; }
+.block-container { padding-top: 0rem; padding-bottom: 3rem; max-width: 1200px; }
+section[data-testid="stSidebar"] { background: linear-gradient(180deg, #0D1220 0%, #0A0E1A 100%); border-right: 1px solid var(--line); }
+section[data-testid="stSidebar"] .stButton button {
+    background: linear-gradient(135deg, #10B981, #059669); color: #04130D; border: none;
+    font-weight: 700; letter-spacing: 1px; border-radius: 6px; transition: transform .15s, box-shadow .2s;
+}
+section[data-testid="stSidebar"] .stButton button:hover { transform: translateY(-1px); box-shadow: 0 8px 20px -10px #10B981; color: #04130D; }
+.side-brand { display: flex; align-items: center; gap: 10px; margin: 0.25rem 0 1.25rem; }
+.side-brand .mark { width: 34px; height: 34px; border-radius: 8px; display: grid; place-items: center; font-size: 18px;
+    background: radial-gradient(circle at 30% 30%, #34D399, #065F46); box-shadow: 0 0 18px -4px #34D399; }
+.side-brand .name { font-weight: 700; letter-spacing: 1.5px; color: var(--text); font-size: 14px; }
+.side-brand .tag { font-size: 10px; color: var(--muted); letter-spacing: 1px; }
+.side-label { font-size: 10px; color: var(--muted); letter-spacing: 1.5px; margin: 0.75rem 0 0.25rem; }
+.status-line { display: flex; justify-content: space-between; font-size: 12px; color: var(--soft); padding: 4px 0; }
+.dot { display: inline-block; width: 7px; height: 7px; border-radius: 50%; margin-right: 6px; vertical-align: middle; }
 
 .ticker-wrap {
     background: #000000;
-    border-bottom: 1px solid #1F2937;
+    border-bottom: 1px solid var(--line);
     overflow: hidden;
     white-space: nowrap;
     height: 34px;
     display: flex;
     align-items: center;
-    margin: 0 -1rem 1.5rem -1rem;
+    margin: 0 -1rem 1.75rem -1rem;
+    -webkit-mask-image: linear-gradient(90deg, transparent, #000 4%, #000 96%, transparent);
+            mask-image: linear-gradient(90deg, transparent, #000 4%, #000 96%, transparent);
 }
 .ticker-move {
     display: inline-block;
     white-space: nowrap;
     animation: ticker-scroll 30s linear infinite;
-    color: #FBBF24;
+    color: var(--amber);
     font-size: 13px;
     letter-spacing: 0.5px;
 }
+.ticker-wrap:hover .ticker-move { animation-play-state: paused; }
 @keyframes ticker-scroll {
     from { transform: translateX(0%); }
     to   { transform: translateX(-50%); }
@@ -76,92 +96,116 @@ html, body, [class*="css"] {
 .terminal-header {
     display: flex;
     justify-content: space-between;
-    align-items: baseline;
-    margin-bottom: 0.25rem;
+    align-items: flex-end;
+    gap: 1rem;
+    padding-bottom: 1rem;
+    margin-bottom: 1.5rem;
+    border-bottom: 1px solid var(--line);
 }
 .terminal-title {
-    font-size: 28px;
+    font-size: 30px;
     font-weight: 700;
-    color: #E5E7EB;
-    letter-spacing: 1px;
+    letter-spacing: 2px;
+    background: linear-gradient(90deg, #E5E7EB 0%, #34D399 120%);
+    -webkit-background-clip: text; background-clip: text; color: transparent;
 }
-.terminal-subtitle {
-    font-size: 13px;
-    color: #6B7280;
-    margin-top: -8px;
-    margin-bottom: 1.2rem;
-}
-.terminal-meta {
-    font-size: 12px;
-    color: #6B7280;
-    text-align: right;
+.terminal-subtitle { font-size: 12px; color: var(--muted); letter-spacing: 1.5px; margin-top: 2px; }
+.terminal-meta { display: flex; gap: 8px; flex-wrap: wrap; justify-content: flex-end; }
+.chip {
+    font-size: 11px; color: var(--soft); background: var(--panel); border: 1px solid var(--line);
+    padding: 4px 10px; border-radius: 999px; letter-spacing: 0.5px; white-space: nowrap;
 }
 
-.metric-row { display: flex; gap: 12px; margin-bottom: 1.5rem; }
+.metric-row { display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 12px; margin-bottom: 1.25rem; }
 .metric-box {
-    background: #111827;
-    border: 1px solid #1F2937;
-    border-radius: 2px;
-    padding: 10px 16px;
-    flex: 1;
+    position: relative; overflow: hidden;
+    background: linear-gradient(180deg, var(--panel) 0%, var(--panel-2) 100%);
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    padding: 14px 16px;
 }
-.metric-label { font-size: 11px; color: #6B7280; letter-spacing: 0.5px; }
-.metric-value { font-size: 22px; font-weight: 600; color: #E5E7EB; }
+.metric-box::before { content: ""; position: absolute; left: 0; top: 0; right: 0; height: 2px; background: var(--accent, #374151); }
+.metric-label { font-size: 10px; color: var(--muted); letter-spacing: 1.2px; }
+.metric-value { font-size: 26px; font-weight: 700; color: var(--text); margin-top: 2px; }
+.metric-sub { font-size: 11px; color: var(--muted); margin-top: 2px; }
+
+.tier-bar { display: flex; height: 8px; border-radius: 4px; overflow: hidden; background: var(--line); margin: 0 0 0.4rem; }
+.tier-bar span { display: block; height: 100%; }
+.tier-legend { display: flex; gap: 16px; font-size: 11px; color: var(--soft); margin-bottom: 1.5rem; }
 
 .lead-row {
-    background: #111827;
-    border: 1px solid #1F2937;
-    border-radius: 2px;
-    padding: 12px 16px;
-    margin-bottom: 6px;
+    background: var(--panel);
+    border: 1px solid var(--line);
+    border-left: 3px solid var(--tier, #374151);
+    border-radius: 8px;
+    padding: 14px 18px;
+    margin-bottom: 8px;
+    transition: border-color .2s, transform .15s, background .2s;
 }
-.lead-row-top { display: flex; align-items: center; justify-content: space-between; }
-.lead-rank { color: #6B7280; font-size: 13px; width: 28px; }
-.lead-name { font-size: 16px; font-weight: 600; color: #E5E7EB; }
-.lead-meta { font-size: 12px; color: #6B7280; }
-.lead-score { font-size: 20px; font-weight: 700; }
+.lead-row:hover { border-color: var(--line-2); border-left-color: var(--tier, #374151); background: #131B2C; transform: translateX(2px); }
+.lead-row-top { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.lead-rank { color: var(--muted); font-size: 13px; width: 32px; }
+.lead-name { font-size: 16px; font-weight: 600; color: var(--text); }
+.lead-meta { font-size: 12px; color: var(--muted); }
+.lead-score { font-size: 22px; font-weight: 700; }
 .lead-driver { font-size: 11px; letter-spacing: 0.5px; }
+.tier-badge {
+    font-size: 10px; font-weight: 700; letter-spacing: 1px; padding: 2px 8px; border-radius: 999px;
+    margin-left: 8px; vertical-align: middle;
+}
 
 .score-track {
-    background: #1F2937;
-    border-radius: 2px;
+    background: var(--line);
+    border-radius: 3px;
     height: 5px;
     width: 100%;
-    margin-top: 6px;
+    margin-top: 10px;
+    overflow: hidden;
 }
-.score-fill { height: 5px; border-radius: 2px; }
+.score-fill { height: 5px; border-radius: 3px; }
 
-.shap-bar-row { display: flex; align-items: center; gap: 8px; margin-bottom: 4px; }
-.shap-label { font-size: 12px; color: #9CA3AF; width: 170px; flex-shrink: 0; }
-.shap-track { background: #1F2937; height: 8px; flex: 1; border-radius: 2px; position: relative; }
-.shap-fill { height: 8px; border-radius: 2px; }
-.shap-value { font-size: 11px; color: #6B7280; width: 50px; text-align: right; flex-shrink: 0; }
+.shap-bar-row { display: flex; align-items: center; gap: 8px; margin-bottom: 6px; }
+.shap-label { font-size: 12px; color: var(--soft); width: 170px; flex-shrink: 0; }
+.shap-track { background: var(--line); height: 8px; flex: 1; border-radius: 4px; position: relative; overflow: hidden; }
+.shap-fill { height: 8px; border-radius: 4px; }
+.shap-value { font-size: 11px; color: var(--muted); width: 50px; text-align: right; flex-shrink: 0; }
 
 .fact-quote {
     font-size: 12px;
-    color: #9CA3AF;
-    border-left: 2px solid #374151;
-    padding-left: 10px;
-    margin: 4px 0;
+    color: var(--soft);
+    border-left: 2px solid #34D39966;
+    background: #0F172A;
+    border-radius: 0 6px 6px 0;
+    padding: 6px 10px;
+    margin: 6px 0;
 }
 
 .signal-panel {
-    background: #1C1408;
+    background: linear-gradient(180deg, #1C1408 0%, #140F06 100%);
     border: 1px solid #92400E;
-    border-radius: 2px;
-    padding: 12px 16px;
+    border-radius: 8px;
+    padding: 14px 18px;
     margin-bottom: 1.2rem;
 }
-.signal-panel-title { font-size: 12px; color: #FBBF24; letter-spacing: 0.5px; margin-bottom: 6px; }
-.signal-item { font-size: 13px; color: #E5E7EB; margin: 4px 0; }
+.signal-panel-title { font-size: 12px; color: var(--amber); letter-spacing: 1px; margin-bottom: 8px; }
+.signal-item { font-size: 13px; color: var(--text); margin: 6px 0; }
 .signal-tag {
     font-size: 10px;
     font-weight: 600;
-    padding: 1px 6px;
-    border-radius: 2px;
+    padding: 2px 7px;
+    border-radius: 4px;
     margin-right: 6px;
     letter-spacing: 0.5px;
 }
+
+.empty-hero {
+    text-align: center; padding: 4rem 1rem; border: 1px dashed var(--line-2); border-radius: 12px;
+    background: radial-gradient(600px 200px at 50% 0%, #34D39914, transparent 70%);
+}
+.empty-hero .big { font-size: 42px; margin-bottom: 0.5rem; }
+.empty-hero .title { font-size: 16px; color: var(--text); font-weight: 600; letter-spacing: 1px; }
+.empty-hero .sub { font-size: 12px; color: var(--muted); margin-top: 6px; }
+.results-count { font-size: 11px; color: var(--muted); letter-spacing: 1px; margin: 0.25rem 0 0.75rem; }
 </style>
 """,
     unsafe_allow_html=True,
@@ -179,12 +223,11 @@ SIGNAL_TAG_COLORS = {
 # ---------------------------------------------------------------- helpers --
 
 
+TIER_COLORS = {"hot": "#34D399", "warm": "#F59E0B", "cold": "#EF4444"}
+
+
 def score_color(score):
-    if score >= 75:
-        return "#34D399"
-    if score >= 45:
-        return "#F59E0B"
-    return "#EF4444"
+    return TIER_COLORS[score_tier(score)]
 
 
 def render_ticker(results):
@@ -275,7 +318,12 @@ model_up = model_ready()
 # --------------------------------------------------------------- sidebar --
 
 with st.sidebar:
-    st.markdown("**SOURCE**")
+    st.markdown(
+        '<div class="side-brand"><div class="mark">📡</div><div>'
+        '<div class="name">GTM TERMINAL</div><div class="tag">OUTBOUND ENGINE</div></div></div>'
+        '<div class="side-label">SOURCE</div>',
+        unsafe_allow_html=True,
+    )
     source_mode = st.radio("source", ["Saved lead list", "Upload CSV"], label_visibility="collapsed")
 
     if source_mode == "Saved lead list":
@@ -310,14 +358,19 @@ with st.sidebar:
     run_clicked = st.button("▶ RUN PIPELINE", use_container_width=True)
 
     st.markdown("---")
-    st.markdown(f"MODEL &nbsp; {'🟢 loaded' if model_up else '🔴 run train_model.py'}", unsafe_allow_html=True)
     if ollama_up:
-        llm_status = "🟢 Ollama connected"
+        llm_color, llm_status = "#34D399", "Ollama"
     elif groq_ready:
-        llm_status = "🟢 Groq connected (cloud)"
+        llm_color, llm_status = "#34D399", "Groq (cloud)"
     else:
-        llm_status = "🟡 no LLM — using template"
-    st.markdown(f"LLM &nbsp; {llm_status}", unsafe_allow_html=True)
+        llm_color, llm_status = "#F59E0B", "template only"
+    model_color, model_status = ("#34D399", "loaded") if model_up else ("#EF4444", "run train_model.py")
+    st.markdown(
+        '<div class="side-label">SYSTEM</div>'
+        f'<div class="status-line"><span>MODEL</span><span><span class="dot" style="background:{model_color}"></span>{model_status}</span></div>'
+        f'<div class="status-line"><span>LLM</span><span><span class="dot" style="background:{llm_color}"></span>{llm_status}</span></div>',
+        unsafe_allow_html=True,
+    )
 
     st.markdown("---")
     check_signals_clicked = st.button("🔔 CHECK SIGNALS", use_container_width=True)
@@ -380,10 +433,14 @@ st.markdown(
 <div class="terminal-header">
     <div>
         <div class="terminal-title">GTM TERMINAL</div>
+        <div class="terminal-subtitle">AML / REGTECH OUTBOUND INTELLIGENCE</div>
     </div>
-    <div class="terminal-meta">LAST RUN: {st.session_state.last_run or '—'}</div>
+    <div class="terminal-meta">
+        <span class="chip">{len(companies)} IN LIST</span>
+        <span class="chip">DRAFTS: {'AI' if use_rag else 'TEMPLATE'}</span>
+        <span class="chip">LAST RUN: {st.session_state.last_run or '—'}</span>
+    </div>
 </div>
-<div class="terminal-subtitle">AML / REGTECH OUTBOUND INTELLIGENCE</div>
 """,
     unsafe_allow_html=True,
 )
@@ -407,7 +464,7 @@ if st.session_state.new_signals:
             tag_color = SIGNAL_TAG_COLORS.get(s["category"], "#6B7280")
             panel_html += (
                 f'<div class="signal-item">'
-                f'<span class="signal-tag" style="background:{tag_color}22; color:{tag_color};">{s["category"].upper()}</span>'
+                f'<span class="signal-tag" style="background:{tag_color}22; color:{tag_color};">{html.escape(s["category"].upper())}</span>'
                 f'<b>{html.escape(company_name)}</b> — {html.escape(s["title"])}{delta_html}'
                 f"</div>"
             )
@@ -416,19 +473,27 @@ if st.session_state.new_signals:
     st.caption("Drafts for these accounts were regenerated with the news worked in.")
 
 if not results:
-    st.info("Select a lead list in the sidebar and click RUN PIPELINE.")
+    st.markdown(
+        '<div class="empty-hero"><div class="big">📡</div>'
+        '<div class="title">NO LEADS SCORED YET</div>'
+        '<div class="sub">Pick a lead list in the sidebar and hit ▶ RUN PIPELINE</div></div>',
+        unsafe_allow_html=True,
+    )
 else:
     avg_score = sum(r["icp_score"] for r in results) / len(results)
-    hot_leads = sum(1 for r in results if r["icp_score"] >= 75)
+    tier_counts = {t: sum(1 for r in results if score_tier(r["icp_score"]) == t) for t in TIER_COLORS}
+    hot_leads = tier_counts["hot"]
 
     st.markdown(
         f"""
 <div class="metric-row">
-    <div class="metric-box"><div class="metric-label">LEADS SCORED</div><div class="metric-value">{len(results)}</div></div>
-    <div class="metric-box"><div class="metric-label">AVG ICP SCORE</div><div class="metric-value">{avg_score:.1f}</div></div>
-    <div class="metric-box"><div class="metric-label">TOP SCORE</div><div class="metric-value">{results[0]['icp_score']:.1f}</div></div>
-    <div class="metric-box"><div class="metric-label">HOT LEADS (≥75)</div><div class="metric-value">{hot_leads}</div></div>
+    <div class="metric-box" style="--accent:#60A5FA"><div class="metric-label">LEADS SCORED</div><div class="metric-value">{len(results)}</div></div>
+    <div class="metric-box" style="--accent:{score_color(avg_score)}"><div class="metric-label">AVG ICP SCORE</div><div class="metric-value">{avg_score:.1f}</div></div>
+    <div class="metric-box" style="--accent:{score_color(results[0]['icp_score'])}"><div class="metric-label">TOP SCORE</div><div class="metric-value">{results[0]['icp_score']:.1f}</div><div class="metric-sub">{html.escape(results[0]['company_name'])}</div></div>
+    <div class="metric-box" style="--accent:#34D399"><div class="metric-label">HOT LEADS (≥75)</div><div class="metric-value">{hot_leads}</div><div class="metric-sub">{hot_leads / len(results):.0%} of list</div></div>
 </div>
+<div class="tier-bar">{''.join(f'<span style="width:{tier_counts[t] / len(results) * 100}%;background:{c}"></span>' for t, c in TIER_COLORS.items())}</div>
+<div class="tier-legend">{''.join(f'<span><span class="dot" style="background:{c}"></span>{t.upper()} {tier_counts[t]}</span>' for t, c in TIER_COLORS.items())}</div>
 """,
         unsafe_allow_html=True,
     )
@@ -447,16 +512,39 @@ else:
         for r in results
     }
 
+    f1, f2, f3 = st.columns([2.2, 1.6, 1.2])
+    with f1:
+        query = st.text_input("Search", placeholder="🔍  Company, industry or country", label_visibility="collapsed")
+    with f2:
+        tiers = st.multiselect(
+            "Tiers", list(TIER_COLORS), default=list(TIER_COLORS),
+            format_func=str.upper, label_visibility="collapsed",
+        )
+    with f3:
+        min_score = st.slider("Min score", 0, 100, 0, label_visibility="collapsed")
+
+    visible = filter_results(results, query=query, min_score=min_score, tiers=tiers)
+    rank_of = {r["company_name"]: i for i, r in enumerate(results, start=1)}
+
     st.download_button(
-        "⬇ Export CSV",
-        data=results_to_csv(results, edited_drafts=edited_drafts),
+        f"⬇ Export {len(visible)} lead{'s' if len(visible) != 1 else ''} (CSV)",
+        data=results_to_csv(visible, edited_drafts=edited_drafts),
         file_name=f"gtm_leads_{datetime.now().strftime('%Y%m%d_%H%M%S')}.csv",
         mime="text/csv",
         use_container_width=True,
+        disabled=not visible,
     )
+    st.markdown(
+        f'<div class="results-count">SHOWING {len(visible)} OF {len(results)} LEADS</div>',
+        unsafe_allow_html=True,
+    )
+    if not visible:
+        st.caption("No leads match these filters.")
 
-    for rank, r in enumerate(results, start=1):
+    for r in visible:
         name = r["company_name"]
+        rank = rank_of[name]
+        tier = score_tier(r["icp_score"])
         color = score_color(r["icp_score"])
         breakdown = r["score_breakdown"]
         top_label, top_val = next(iter(breakdown.items()))
@@ -464,12 +552,12 @@ else:
 
         st.markdown(
             f"""
-<div class="lead-row">
+<div class="lead-row" style="--tier:{color};">
     <div class="lead-row-top">
         <div style="display:flex; align-items:center; gap:14px;">
             <span class="lead-rank">#{rank}</span>
             <div>
-                <span class="lead-name">{html.escape(name)}</span>
+                <span class="lead-name">{html.escape(name)}</span><span class="tier-badge" style="background:{color}22; color:{color};">{tier.upper()}</span>
                 <span class="lead-meta">&nbsp;&nbsp;{html.escape(r.get('industry') or '')} · {html.escape(r.get('country') or '')}</span>
             </div>
         </div>
