@@ -156,3 +156,44 @@ def results_to_csv(results: list[dict], edited_drafts: dict[str, dict] | None = 
         })
 
     return buf.getvalue()
+
+
+# Score bands shared by the dashboard's colours, tier badges and filters.
+# Ordered high to low; a score belongs to the first tier whose floor it meets.
+SCORE_TIERS = (("hot", 75), ("warm", 45), ("cold", 0))
+
+
+def score_tier(score: float) -> str:
+    """Returns "hot", "warm" or "cold" for an ICP score on the 0-100 scale."""
+    for tier, floor in SCORE_TIERS:
+        if score >= floor:
+            return tier
+    return "cold"
+
+
+def filter_results(
+    results: list[dict],
+    query: str = "",
+    min_score: float = 0,
+    tiers: list[str] | None = None,
+) -> list[dict]:
+    """
+    Narrows scored results for display/export. query is a case-insensitive
+    substring match against company name, industry and country; tiers, if
+    given, keeps only results in those score tiers. Order is preserved.
+    """
+    q = (query or "").strip().lower()
+    allowed = set(tiers) if tiers else None
+    out = []
+    for r in results:
+        score = r.get("icp_score", 0)
+        if score < min_score:
+            continue
+        if allowed is not None and score_tier(score) not in allowed:
+            continue
+        if q:
+            haystack = " ".join(str(r.get(k) or "") for k in ("company_name", "industry", "country")).lower()
+            if q not in haystack:
+                continue
+        out.append(r)
+    return out

@@ -35,7 +35,11 @@ in-process in `app/retrieval.py`, so none of these code paths are
 exposed here. See `tests/test_security.py`, which fails loudly if that
 ever changes, and the note in `requirements.txt`/`README.md`.
 
-Re-check `pip-audit -r requirements.txt` periodically — do not switch
+`.github/workflows/audit.yml` runs `pip-audit` on the 1st of every month
+(and on any PR touching requirements). It fails on any new advisory, and on
+these four as soon as a fixed chromadb version exists, which is the cue to
+bump the pin. You can also run it by hand: `pip-audit -r requirements.txt`.
+Do not switch
 to `HttpClient()`/`chroma run` until fixes ship for all four.
 
 No other known vulnerabilities were found.

@@ -19,7 +19,6 @@ Run: python train_model.py
 import math
 import os
 
-import joblib
 import numpy as np
 import pandas as pd
 import xgboost as xgb
@@ -146,8 +145,8 @@ def main():
     print(f"Base rate (% converted in data): {y.mean():.1%}")
 
     os.makedirs("model", exist_ok=True)
-    joblib.dump(model, "model/icp_model.joblib")
-    print("Saved model to model/icp_model.joblib")
+    model.save_model("model/icp_model.json")
+    print("Saved model to model/icp_model.json")
 
 
 if __name__ == "__main__":
