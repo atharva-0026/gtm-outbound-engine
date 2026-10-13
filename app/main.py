@@ -63,11 +63,20 @@ def personalize(payload: CompanyList):
     # -> rank", so this standalone step must run enrich+score first to
     # match, exactly like /pipeline already does per-company.
     drafts = []
+    errors = []
     for c in payload.companies:
-        enriched = enrich_companies([c.model_dump()])[0]
-        scored = score_company(enriched)
-        drafts.append(generate_outreach(scored))
-    return {"drafts": drafts}
+        try:
+            enriched = enrich_companies([c.model_dump()])[0]
+            scored = score_company(enriched)
+            drafts.append(generate_outreach(scored))
+        except (ValueError, TypeError) as e:
+            # Same per-company isolation as /score and /pipeline: one
+            # employee_count=-500 used to 500 the whole batch here.
+            errors.append({"company_name": c.company_name, "error": str(e)})
+    response = {"drafts": drafts}
+    if errors:
+        response["errors"] = errors
+    return response
 
 
 @app.post("/pipeline")
