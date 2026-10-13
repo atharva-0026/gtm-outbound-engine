@@ -132,3 +132,22 @@ def test_score_isolates_one_bad_company_instead_of_crashing_whole_batch():
     bad = next(s for s in scored if s["company_name"] == "BadCo")
     assert "icp_score" in good
     assert "employee_count must be non-negative" in bad["error"]
+
+
+def test_personalize_isolates_one_bad_company_instead_of_crashing_whole_batch():
+    res = client.post(
+        "/personalize",
+        json={
+            "companies": [
+                {"company_name": "GoodCo", "employee_count": 100, "regulatory_flags": []},
+                {"company_name": "BadCo", "employee_count": -500, "regulatory_flags": []},
+            ]
+        },
+    )
+    assert res.status_code == 200
+    body = res.json()
+    assert len(body["drafts"]) == 1
+    assert body["errors"] == [
+        {"company_name": "BadCo", "error": body["errors"][0]["error"]}
+    ]
+    assert "employee_count must be non-negative" in body["errors"][0]["error"]

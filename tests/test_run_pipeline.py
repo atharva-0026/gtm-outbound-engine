@@ -78,3 +78,21 @@ def test_one_bad_row_does_not_prevent_other_rows_from_loading():
     companies = load_csv(path)
     names = [c["company_name"] for c in companies]
     assert names == ["GoodCo1", "GoodCo2"]
+
+
+def test_main_skips_negative_employee_count_instead_of_aborting(tmp_path, monkeypatch, capsys):
+    import run_pipeline
+
+    path = _write_csv(
+        [
+            {"company_name": "GoodCo", "employee_count": "100", "regulatory_flags": ""},
+            {"company_name": "BadCo", "employee_count": "-500", "regulatory_flags": ""},
+        ],
+        ["company_name", "employee_count", "regulatory_flags"],
+    )
+    monkeypatch.chdir(tmp_path)
+    run_pipeline.main(path)
+    captured = capsys.readouterr()
+    assert "GoodCo" in captured.out
+    assert "skipping 'BadCo'" in captured.err
+    assert (tmp_path / "pipeline_output.json").exists()

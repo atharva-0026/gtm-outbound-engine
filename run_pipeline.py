@@ -40,9 +40,15 @@ def main(path):
     companies = load_csv(path)
     results = []
     for c in companies:
-        enriched = enrich_companies([c])[0]
-        scored = score_company(enriched)
-        draft = generate_outreach(scored)
+        try:
+            enriched = enrich_companies([c])[0]
+            scored = score_company(enriched)
+            draft = generate_outreach(scored)
+        except (ValueError, TypeError) as e:
+            # load_csv only checks employee_count is an int; a negative
+            # one still reaches score_company and used to abort the run.
+            print(f"WARNING: skipping '{c.get('company_name')}' — {e}", file=sys.stderr)
+            continue
         results.append({**scored, "email_draft": draft})
 
     results.sort(key=lambda x: x["icp_score"], reverse=True)
