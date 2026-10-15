@@ -36,3 +36,23 @@ def test_regenerate_draft_updates_email_draft_not_just_widget_state():
         "'RETRIEVED FACTS' and 'generation: ...' caption (which read "
         "r['email_draft'] directly) stay in sync with what's actually displayed"
     )
+
+
+def test_run_pipeline_isolates_one_bad_company_instead_of_crashing_whole_run():
+    """Regression test: app/main.py's /pipeline endpoint and
+    run_pipeline.py's main() both isolate a single bad company
+    (e.g. employee_count=-500, which raises from math.log1p() in
+    build_features()) instead of crashing the whole batch. The
+    dashboard's RUN PIPELINE loop had no such isolation - one bad row
+    in an uploaded CSV crashed the entire dashboard run, losing every
+    other company's results too."""
+    content = _read_dashboard()
+    idx = content.find("if run_clicked and companies:")
+    assert idx != -1, "expected the RUN PIPELINE loop in dashboard.py"
+    next_blank_idx = content.find("\n\n", idx)
+    snippet = content[idx: next_blank_idx if next_blank_idx != -1 else len(content)]
+    assert "try:" in snippet, "the per-company process_company() call must be isolated with try/except"
+    assert "except" in snippet
+    assert "process_company" in snippet.split("try:")[1], (
+        "process_company() call must be inside the try block, not before it"
+    )
